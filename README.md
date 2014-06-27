@@ -14,7 +14,7 @@ This project provides a library of virtual controls such as:
   
 You can also write your own custom interaction object from template and easily link it with rest! 
 
-How This Works
+###How This Works
 
   Instead of looking at the entire field of view for the Leap Controller and determining what gestures to interpret,
   we divide up the space with "Interaction Objects". Basically Interaction Objects are a specific region in space
@@ -24,13 +24,13 @@ How This Works
   the state changes.
   
   
-Using Your Code:
+###Using Your Code:
 
   Each Interaction Object can be linked to a callback. The callback is where you put your code that you want to run each
   time the Interaction Object is updated by user interaction. The KeyBinding class is the glue where Interaction Objects
   are linked with their callbacks
   
-    Example:
+####Example:
     
       class KeyBinding(object):
       
