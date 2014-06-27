@@ -7,10 +7,10 @@ The Leap Motion Controller is a cool way to control your application, but linkin
 to specific gestures can take a while.
 
 This project provides a library of virtual controls such as:
-  - Buttons
-  - Sliders
-  - 2D and 3D position control (like a mouse) [WIP]
-  - 2D and 3D orientation control (like a trackball) [WIP]
+  - [x] Buttons
+  - [x] Sliders
+  - [ ] 2D and 3D position control (like a mouse)
+  - [ ] 2D and 3D orientation control (like a trackball)
   
 You can also write your own custom interaction object from template and easily link it with rest! 
 
