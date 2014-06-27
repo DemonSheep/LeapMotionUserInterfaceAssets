@@ -4,6 +4,7 @@ Created on Tue Jun 24 15:47:17 2014
 
 @author: Isaiah Bell
 Copyright 2014
+Released under MIT License
 """
 
 from Keybindings import *

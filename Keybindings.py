@@ -4,6 +4,7 @@ Created on Tue Jun 24 15:39:48 2014
 
 @author: Isaiah Bell
 Copyright (c) 2014
+Released under MIT License
 """
 
 from InteractionObjects import CubicButton,Slider
