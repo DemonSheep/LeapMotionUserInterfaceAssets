@@ -39,7 +39,7 @@ You can also write your own custom interaction object from template and easily l
           self.some_button_name = [ CubicButton(**kargs), self.some_button_callback]
           ...
           
-          // We have list of every Interaction Element so we can iterate thorugh and poll them
+          // We have list of every Interaction Element so we can iterate through and poll them
           self.UE_list = [self.some_button_name,...]
           
           
