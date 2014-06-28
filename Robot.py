@@ -4,6 +4,7 @@ Created on Tue Jun 24 15:54:42 2014
 
 @author: Isaiah Bell
 Copyright (c) 2014
+Released under MIT License
 """
 
 from types import ListType

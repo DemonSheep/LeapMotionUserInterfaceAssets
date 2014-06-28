@@ -3,7 +3,8 @@
 Created on Tue Jun 24 15:38:58 2014
 
 @author: Isaiah Bell
-Copyright (c) 2014
+Copyright (c) 2014 
+Released under MIT License
 """
 import Leap
 import time
