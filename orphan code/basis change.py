@@ -9,6 +9,7 @@ import math
 '''THIS WORKS: DONT TOUCH**********************************************'''        
 
 def magnitude(vec):
+    vec = list(vec)    
     temp = math.sqrt(sum(i**2 for i in vec))
     return temp
 
@@ -47,20 +48,22 @@ class Quaternion(object):
         # compose the left side of sandwich
         left = cls.multiply(quaternion,vector)
         # multiply the left with the inverse
-        result = cls.multiply(left,inverse)
+        result = cls.multiply(left,inverse) #returns a list
+        #remove the first value which will be zero for real rotations
+        result.pop(0)
         return result
         
     @classmethod
     def compose_quaternion(cls,angle,axis): #angle in radians
         # make sure we are working with a three vector
-        assert len(axis)
+        assert len(axis) == 3
         # check vector and ensure it is unit vector
         PRACTICALLY_ZERO = 0.000000001
         if 1.0 - PRACTICALLY_ZERO < magnitude(axis) < 1.0 + PRACTICALLY_ZERO:
-            normed_axis = axis
+            normed_axis = [float(x) for x in axis]
         else:
             mag = magnitude(axis)
-            normed_axis = [x/mag for x in axis]
+            normed_axis = [float(x/mag) for x in axis]
         quat = [0,0,0,0]    
         quat[0] = math.cos(angle/2)
         quat[1] = math.sin(angle/2)*normed_axis[0]
@@ -127,6 +130,37 @@ def generate_basis(n): # where n is normal vector of the body frame
         in inertial refrence frame coordinates.\n
 
     '''
+    k = (0,0,1)
+    basis = [[1,0,0],[0,1,0],[1,0,0]]
+    
+    cross, angle = cross_product(k, n)
+    #the existance of axis z prime will be the flag to control which computation we do
+    k_prime = None
+    if abs(angle) < 0.1:
+        #create another rotation quaternion
+        reference_quaternion = Quaternion.compose_quaternion(math.pi/4,(0,1,0))
+        k_prime =  Quaternion.rotation(n, reference_quaternion)
+        #redefine cross and the angle for the final step
+        cross, angle = cross_product(k_prime, n)
+        final_quaternion = Quaternion.compose_quaternion(angle,cross)
+        
+    else:
+        # if we did not get close than angle and cross are the first value calculated
+        final_quaternion = Quaternion.compose_quaternion(angle,cross)
+        
+    # if we calculated a second axis we rotate our coordinate system by the reference quaternion first
+    if k_prime:
+        # redefine our basis rotated 45 degrees about y-axis
+        basis = [Quaternion.rotation(i,reference_quaternion) for i in basis]
+    # make the final rotation
+    new_basis = [Quaternion.rotation(i,final_quaternion) for i in basis]
+    
+    return new_basis
+        
+        
+        
+        
+    
     
         
 ''' ***************************** TESTS *******************************'''
@@ -143,23 +177,26 @@ def basis_test():
     x = (1,0,0)
     y = (0,1,0)
     z = (0,0,1)
-    other = (-.1,12,1)
-    print generate_basis(y,other)
+    other = (1,1,1)
+    print generate_basis(z),'\n'
     
 def quaternion_test():
     PRACTICALLY_ZERO = 0.000000001
     myvector = (0,1,0,0)
     myquaternion = Quaternion.compose_quaternion(math.pi/6,(0,0,1))
     revolved = Quaternion.rotation(myvector,myquaternion)
-    assert (math.cos(math.pi/6)-PRACTICALLY_ZERO) < revolved[1] < (math.cos(math.pi/6)+PRACTICALLY_ZERO)
-    assert (math.sin(math.pi/6)-PRACTICALLY_ZERO) < revolved[2] < (math.sin(math.pi/6)+PRACTICALLY_ZERO)    
+    assert (math.cos(math.pi/6)-PRACTICALLY_ZERO) < revolved[0] < (math.cos(math.pi/6)+PRACTICALLY_ZERO)
+    assert (math.sin(math.pi/6)-PRACTICALLY_ZERO) < revolved[1] < (math.sin(math.pi/6)+PRACTICALLY_ZERO)    
+    print revolved
     
 def cross_product_test():
     x = (1,0,0)
     y = (0,1,0)
     z = (0,0,1)
-    cross, angle = cross_product(x,y)
+    other = (1,1,1)
+    cross, angle = cross_product(z,other)
     print cross
+    print angle
     print math.degrees(angle)
     bad_vec = (0,0,0,1)
     print 'This should say vector A is bad:'
@@ -167,9 +204,12 @@ def cross_product_test():
     print 'This should say vector B is bad:'
     cross_product(z,bad_vec)
     
-cross_product_test()
+#cross_product_test()
+    
+#quaternion_test()
 
-generate_basis()
+basis_test()
+
 
 
 
