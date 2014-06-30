@@ -7,17 +7,17 @@ Created on Fri Jun 27 10:42:40 2014
 import math
 
 '''THIS WORKS: DONT TOUCH**********************************************'''        
+
+def magnitude(vec):
+    temp = math.sqrt(sum(i**2 for i in vec))
+    return temp
+
 class Quaternion(object):
-    
-    @classmethod
-    def magnitude(cls,vec):
-        temp = math.sqrt(sum(i**2 for i in vec))
-        return temp
-    
+       
     @classmethod
     def inverse(cls,quat):
         # find the conjugate and divde by magnitude
-        n = cls.magnitude(quat)
+        n = magnitude(quat)
         quat = list(quat) # cats to list so we can modify terms
         quat[0] =  quat[0]/n        
         quat[1] = -quat[1]/n
@@ -56,10 +56,10 @@ class Quaternion(object):
         assert len(axis)
         # check vector and ensure it is unit vector
         PRACTICALLY_ZERO = 0.000000001
-        if 1.0 - PRACTICALLY_ZERO < cls.magnitude(axis) < 1.0 + PRACTICALLY_ZERO:
+        if 1.0 - PRACTICALLY_ZERO < magnitude(axis) < 1.0 + PRACTICALLY_ZERO:
             normed_axis = axis
         else:
-            mag = cls.magnitude(axis)
+            mag = magnitude(axis)
             normed_axis = [x/mag for x in axis]
         quat = [0,0,0,0]    
         quat[0] = math.cos(angle/2)
@@ -68,63 +68,83 @@ class Quaternion(object):
         quat[3] = math.sin(angle/2)*normed_axis[2]
         return quat
         
-'''END OF THIS WORKS**********************************************'''        
-            
-    
-class Some(object):
-    
-    def __init__(self,center = (0,0,0),normal = (0,0,1),reference_normal = (0,1,0)):
+'''END OF THIS WORKS**********************************************'''
 
-        self.center = center
-        self.k_hat = normal
+PRACTICALLY_ZERO = 0.000000001
+    
+def check_orthagonal(vectorA,vectorB):
+    assert len(vectorA) == len (vectorB)
+    dot = lambda x,y: sum(x[i]*y[i] for i,v in enumerate(x))
+    if abs(dot(vectorA,vectorB)) < PRACTICALLY_ZERO:
+        return True # the vectors are orthagonal
+    else: 
+        return False # the vectors are not orthagonal
+        
+def cross_product(vector_A, vector_B):
+    try:
+        # allow 2D and 3D vectors to be mixed
+        # cross product is only defined for 2,3 and 7 dimensions
+        assert 2 <= len(vector_A) <= 3,'Invalid rank: Vector_A must be 2 or 3-vector'
+        assert 2 <= len(vector_B) <= 3,'Invalid rank: Vector_B must be 2 or 3-vector'
+        if len(vector_A) == 2:
+            vector_A = list(vector_A) # cast to list so we can modify
+            vector_A.append(0) # convert to 3 vector
+        if len(vector_B) == 2:
+            vector_B = list(vector_B) # cast to list so we can modify
+            vector_B.append(0) # convert to 3 vector
+        # normalize the vectors
+        # for shorter typing later we use one letter names for the normalized vectors
+        A = [x/magnitude(vector_A) for x in vector_A]
+        B = [x/magnitude(vector_B) for x in vector_B]
+        # this works on all vectors, what we will do with it will only work with unit vectors
+        cross_product = [A[1]*B[2]-A[2]*B[1],
+                         A[2]*B[0]-A[0]*B[2],
+                         A[0]*B[1]-A[1]*B[0]]
+        angle = math.asin(magnitude(cross_product))
+        return cross_product, angle
+    except AssertionError as error:
+        #if we get here someone passed in a bad vector
+        print error, '\n'
+        return None, None
+    
+    
+def generate_basis(n): # where n is normal vector of the body frame
+    '''Calculate basis of vector space using quaternions.
+    
+    Parameters:
+    ===============
+            n = normal vector in corrdinates of Inertial Frame, 
+            does not have to a unit vector (although unit vectors are prefered)
+    Operation:
+    ===============
+        Compose the quaternion by taking the cross-product **k** x **n**
+        If the angle is small < 5 degrees then we rotate our reference 
+        frame about the y-axis by 45 degrees using a quaternion to 
+        make **k'**. Then we compute **k'** x **n** and compose a second 
+        quaternion. \n
+        Once the coordinate transformations are defined, the
+        unit vectors of the body refrence frame are computed and returned
+        in inertial refrence frame coordinates.\n
 
-        self.DELTA = 0.000001  #comparsion we use for float math
-        
-    def check_orthagonal(self,vectorA,vectorB):
-        assert len(vectorA) == len (vectorB)
-        dot = lambda x,y: sum(x[i]*y[i] for i,v in enumerate(x))
-        if abs(dot(vectorA,vectorB)) < self.DELTA:
-            return True # the vectors are orthagonal
-        else: 
-            return False # the vectors are not orthagonal
-            
-            
-    def generate_basis(self,n,d): # where n is normal vector and d is direction
-        k = 0
-        
-        for index,value in enumerate(n):
-            k += n[index]*d[index]
-        k = float(k)
-#        print k
-        print d
-        r= []
-        for index, value in enumerate(d): 
-            r.append(d[index] - k * n[index])
-        mag = lambda vec: math.sqrt(sum(i**2 for i in vec))
-        temp = mag(r)
-        for index,value in enumerate(r):
-            r[index] = r[index]/temp
-        return r
-        
+    '''
+    
         
 ''' ***************************** TESTS *******************************'''
 
 def orthagonal_test():        
-    s = Some()
     x = (1,0,0)
     x_ = (-1,0,0)
     y = (0,-.9999999,0.00000000002) 
-    assert (s.check_orthagonal(x,x) == False)
-    assert (s.check_orthagonal(x,x_) == False)
-    assert (s.check_orthagonal(x,y) == True)
+    assert (check_orthagonal(x,x) == False)
+    assert (check_orthagonal(x,x_) == False)
+    assert (check_orthagonal(x,y) == True)
        
 def basis_test():
-    s = Some()
     x = (1,0,0)
     y = (0,1,0)
     z = (0,0,1)
     other = (-.1,12,1)
-    print s.generate_basis(y,other)
+    print generate_basis(y,other)
     
 def quaternion_test():
     PRACTICALLY_ZERO = 0.000000001
@@ -134,7 +154,22 @@ def quaternion_test():
     assert (math.cos(math.pi/6)-PRACTICALLY_ZERO) < revolved[1] < (math.cos(math.pi/6)+PRACTICALLY_ZERO)
     assert (math.sin(math.pi/6)-PRACTICALLY_ZERO) < revolved[2] < (math.sin(math.pi/6)+PRACTICALLY_ZERO)    
     
-quaternion_test()
+def cross_product_test():
+    x = (1,0,0)
+    y = (0,1,0)
+    z = (0,0,1)
+    cross, angle = cross_product(x,y)
+    print cross
+    print math.degrees(angle)
+    bad_vec = (0,0,0,1)
+    print 'This should say vector A is bad:'
+    cross_product(bad_vec,z)
+    print 'This should say vector B is bad:'
+    cross_product(z,bad_vec)
+    
+cross_product_test()
+
+generate_basis()
 
 
 
