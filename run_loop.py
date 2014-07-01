@@ -7,9 +7,16 @@ Copyright 2014
 Released under MIT License
 """
 
-from Keybindings import *
-from InteractionObjects import *
-from Robot import *
+#Next bunch of lines are a hack
+# Fix when I understand realitive paths and modules
+import sys
+import os
+
+sys.path.insert(0,os.path.dirname(__file__))
+
+from lib.Keybindings import *
+from lib.InteractionObjects import *
+from lib.Robot import *
 
         
 

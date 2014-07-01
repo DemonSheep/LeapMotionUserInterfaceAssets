@@ -8,6 +8,9 @@ Released under MIT License
 """
 import Leap
 import time
+import sys
+sys.path
+import VectorMath
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -27,8 +30,7 @@ def get_data():
         time.sleep(1)
 
 class TimeKeeper(object):
-    '''
-    Keep track of time since last called
+    '''Keep track of time since last called
 
     Time is just a number, does not use system time.
 
@@ -49,8 +51,7 @@ class TimeKeeper(object):
         return (foo,True)
 
 class Buffer(object):
-    '''
-    Create a First In First Out bounded queue to store objects
+    '''Create a First In First Out bounded queue to store objects
         buffer_size (default = 10) is number of objects in queue
     '''
     def __init__(self, buffer_size = 10):
@@ -121,8 +122,7 @@ class InteractionHandler(object):
                     
 
 class InteractionSpace(object):
-    '''
-    Define volumes and valid interations for human input
+    '''Define volumes and valid interations for human input
 
     Create a volume in space that control actions can be bound to.
     Valid interactions are defined in the scope of the InteractionSpace object.
@@ -143,8 +143,7 @@ class InteractionSpace(object):
 
 
 class CubicButton(InteractionSpace):
-    '''
-    Create a button that can be pressed by moving fingers through a touch plane
+    '''Create a button that can be pressed by moving fingers through a touch plane
     The button is in the form of an axis aligned rectangular prism in space
 
     Attributes:
@@ -172,8 +171,7 @@ class CubicButton(InteractionSpace):
         
         
 class Slider(InteractionSpace):
-    '''
-    Create a slider that producess a linear output with position
+    '''Create a slider that producess a linear output with position
     
     Attributes:
         center = (x,y,z) center of button is  equidistant from all sides
@@ -268,3 +266,14 @@ class Slider(InteractionSpace):
                     pass
             
         
+class PlanarPosition(InteractionSpace):
+        '''Create a Planar Position sensor that producess a linear output with position in a plane
+    
+    Attributes:
+        center = (x,y,z) center of button is  equidistant from all sides
+        width  = width of the button, measured along x-axis
+        height = height of the button, measured along the y-axis
+        depth  = depth of the button, measured along the z-axis
+        normal_direction = unit vector normal to plane
+        enforce_planar_normal = [True] 
+        '''
