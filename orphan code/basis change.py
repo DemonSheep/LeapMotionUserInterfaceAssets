@@ -6,6 +6,7 @@ Created on Fri Jun 27 10:42:40 2014
 """
 import math
 
+
 '''THIS WORKS: DONT TOUCH**********************************************'''        
 
 def magnitude(vec):
@@ -131,12 +132,12 @@ def generate_basis(n): # where n is normal vector of the body frame
 
     '''
     k = (0,0,1)
-    basis = [[1,0,0],[0,1,0],[1,0,0]]
+    basis = [[1,0,0],[0,1,0],[0,0,1]]
     
     cross, angle = cross_product(k, n)
     #the existance of axis z prime will be the flag to control which computation we do
     k_prime = None
-    if abs(angle) < 0.1:
+    if abs(angle) < 0.2:
         #create another rotation quaternion
         reference_quaternion = Quaternion.compose_quaternion(math.pi/4,(0,1,0))
         k_prime =  Quaternion.rotation(n, reference_quaternion)
@@ -147,7 +148,6 @@ def generate_basis(n): # where n is normal vector of the body frame
     else:
         # if we did not get close than angle and cross are the first value calculated
         final_quaternion = Quaternion.compose_quaternion(angle,cross)
-        
     # if we calculated a second axis we rotate our coordinate system by the reference quaternion first
     if k_prime:
         # redefine our basis rotated 45 degrees about y-axis
@@ -178,7 +178,7 @@ def basis_test():
     y = (0,1,0)
     z = (0,0,1)
     other = (1,1,1)
-    print generate_basis(z),'\n'
+    print generate_basis((1,1,0)),'\n'
     
 def quaternion_test():
     PRACTICALLY_ZERO = 0.000000001
