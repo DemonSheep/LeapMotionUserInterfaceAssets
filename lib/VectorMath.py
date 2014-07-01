@@ -158,7 +158,11 @@ def generate_basis(n): # where n is normal vector of the body frame
     return new_basis
         
         
-        
+def decompose_vector(vector,basis):
+    dot = lambda x,y: sum(x[i]*y[i] for i,v in enumerate(x))
+    components = [dot(unit_vec,vector) for unit_vec in basis]
+    return component
+
         
     
     

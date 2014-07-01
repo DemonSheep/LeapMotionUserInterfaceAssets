@@ -270,10 +270,19 @@ class PlanarPosition(InteractionSpace):
         '''Create a Planar Position sensor that producess a linear output with position in a plane
     
     Attributes:
+    ==================
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
         height = height of the button, measured along the y-axis
         depth  = depth of the button, measured along the z-axis
         normal_direction = unit vector normal to plane
-        enforce_planar_normal = [True] 
+        enforce_planar_normal = Boolean to determine whether hand orientation is 
+            used to determine sucessful interaction.
+
+    Behaviour:
+    ==================
+        The Planar object has two outputs, an x and y component of measured 
+        movement in the PlanarPosition object's own reference frame. The  
+        reference frame is determined from the normal vector. The raw input 
+        from the Leap will be converted into 
         '''
