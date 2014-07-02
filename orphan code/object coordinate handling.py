@@ -30,11 +30,17 @@ class InteractionSpace(object):
         self.width = WIDTH
         self.height = HEIGHT
         self.depth = DEPTH
+        # when we start we want to convert 
 
         '''These are values that have nothing to do with reference frame'''
         self.gain = 10
+
+
     
     def is_valid(self,frame_data):
         return True #temporary value for testing
 
-    def convert_to_local_frame(vector)
+    def convert_to_local_frame(self,coordinates,basis = self.local_basis):
+    	# find the relative vector from local origin to leap point
+    	relative_vector = [value-self.center[index] for index,value in enumerate(coordinates)]
+    	local_coordinates = VectorMath.decompose_vector(relative_vector,basis)
