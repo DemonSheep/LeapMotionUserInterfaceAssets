@@ -130,15 +130,18 @@ class InteractionSpace(object):
     when a valid gesture is detected.
 
     '''
-    def __init__(self,CENTER = (0,0,0),WIDTH = 0,HEIGHT = 0,DEPTH = 0):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 0,HEIGHT = 0,DEPTH = 0,NORMAL = (0,1,0)):
         self.center = CENTER
         self.width = WIDTH
         self.height = HEIGHT
         self.depth = DEPTH
         self.gain = 10
+        self.normal = NORMAL # keep this as a tuple, this should not be changing
     
     def is_valid(self,frame_data):
         return True #temporary value for testing
+
+    def convert_to_local_frame(vector)
 
 
 
@@ -284,5 +287,5 @@ class PlanarPosition(InteractionSpace):
         The Planar object has two outputs, an x and y component of measured 
         movement in the PlanarPosition object's own reference frame. The  
         reference frame is determined from the normal vector. The raw input 
-        from the Leap will be converted into 
+        from the Leap will be converted into local reference frame coordinates.
         '''

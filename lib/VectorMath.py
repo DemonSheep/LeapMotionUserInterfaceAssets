@@ -159,6 +159,17 @@ def generate_basis(n): # where n is normal vector of the body frame
         
         
 def decompose_vector(vector,basis):
+    '''Convert vector into basis unit vectors
+
+    Parameters:
+    ==============
+        vector = (x,y,z) vector in global coordinates you wish to convert
+                 local coordinates
+        basis = [[x1, y1, z1], [x2, y2, z3], [x3, y3, z3]] in which are 
+                 the **UNIT VECTORS** of the basis you are converting to.
+                 These really should be unit vectors unless you are doing
+                 crazy.
+    '''
     dot = lambda x,y: sum(x[i]*y[i] for i,v in enumerate(x))
     components = [dot(unit_vec,vector) for unit_vec in basis]
     return components
@@ -207,12 +218,21 @@ def cross_product_test():
     cross_product(bad_vec,z)
     print 'This should say vector B is bad:'
     cross_product(z,bad_vec)
+
+def decompose_vector_test():
+    mybasis = [[1,0,0],[0,1,0],[0,0,1]]
+    myvector = (1,2,3)
+    assert decompose_vector(myvector,mybasis) == [1,2,3]
+    another_basis = [[1,2,3],[0,0,0],[0,0,0]]
+    print decompose_vector(myvector,another_basis)
     
 #cross_product_test()
     
 #quaternion_test()
 
-basis_test()
+#basis_test()
+
+#decompose_vector_test()
 
 
 
