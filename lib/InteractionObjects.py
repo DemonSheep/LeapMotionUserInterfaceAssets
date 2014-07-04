@@ -130,19 +130,50 @@ class InteractionSpace(object):
     when a valid gesture is detected.
 
     '''
-    def __init__(self,CENTER = (0,0,0),WIDTH = 0,HEIGHT = 0,DEPTH = 0,NORMAL = (0,1,0)):
-        self.center = CENTER
+    def __init__(self,CENTER = (0,0,0),WIDTH = 0,HEIGHT = 0,DEPTH = 0,\
+    			 NORMAL = (0,1,0)):
+        
+        '''These values are in Leap coordinates'''
+        self.center = CENTER 
+        self.normal = NORMAL # keep this as a tuple, this should not be changing
+
+        '''These values are in local coordinates'''
         self.width = WIDTH
         self.height = HEIGHT
         self.depth = DEPTH
-        self.gain = 10
-        self.normal = NORMAL # keep this as a tuple, this should not be changing
+        # when we initialize we set up local coordinates
+        self.local_basis = VectorMath.generate_basis(normal_vector)
+
+
+        '''These are values that have nothing to do with reference frame'''
+        self.gain = 1
+
+
     
-    def is_valid(self,frame_data):
-        return True #temporary value for testing
+    def is_valid(self,position):
+        '''Determine if a position given in Leap reference frame is inside 
+        Interaction volume
 
-    def convert_to_local_frame(vector)
+        Parameters:
+        =============
+            position = (x,y,z) position in Leap frame of reference
 
+        '''
+        #convert Leap frame to local frame
+        local_position = convert_to_local_coordinates(position, basis = self.local_basis)
+        # check the bounds of the volume with our local_position
+        if (self.center[0]-self.width/2) <= local_position[0] <= (self.center[0]+self.width/2):
+            if (self.center[1]-self.depth/2) <= local_position[1] <= (self.center[1]+self.depth/2):
+                if (self.center[2]-self.height/2) <= local_position[2] <= (self.center[2]+self.height/2):                       
+                    return True
+                
+        return False
+
+    def convert_to_local_coordinates(self,coordinates,basis = self.local_basis):
+    	# find the relative vector from local origin to leap point
+    	relative_vector = [value-self.center[index] for index,value in enumerate(coordinates)]
+    	local_coordinates = VectorMath.decompose_vector(relative_vector,basis)
+        return local_coordinates
 
 
 class CubicButton(InteractionSpace):
