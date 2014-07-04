@@ -228,7 +228,7 @@ class Slider(InteractionSpace):
         return False
             
                         
-    def update(self,foo):
+    def update(self,not_used):
         NUMBER_OF_SPOTS = 20   
         if self.enforce_slider_normal is True:
             
@@ -289,3 +289,12 @@ class PlanarPosition(InteractionSpace):
         reference frame is determined from the normal vector. The raw input 
         from the Leap will be converted into local reference frame coordinates.
         '''
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
+        super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
+
+    def is_valid(self,frame_data):
+        #in this version of is_valid
+        for hand in frame_data.hands:
+            position = hand.palm_position
+            if super(PlanarPosition,self).is_valid(position):
+                #!!scSIDE EFFECTS!! update state
