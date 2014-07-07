@@ -94,6 +94,7 @@ class Buffer(object):
                 pass
             
 '''HANDLE USER INPUT ######################################################## '''
+
 class InteractionHandler(object):
     
     def __init__(self):
@@ -226,21 +227,7 @@ class Slider(InteractionSpace):
         self.hand_id = None
         # figure out which direction the slider works in
         # direction is the largest dimension orthagonal to normal_direction        
-        if self.normal_direction[0] != 0:
-            if self.depth >= self.height: #prefer flat sliders
-                self.long_side = [self.depth,2]
-            else:
-                self.long_side = [self.heigh,1]
-        elif self.normal_direction[1] != 0:
-            if self.width >= self.depth:
-                self.long_side = [self.width,0]
-            else:
-                self.long_side = [self.depth,2]
-        else:
-            if self.width >= self.height: # prefer flat sliders
-                self.long_side = [self.width, 0]
-            else:
-                self.long_side = [self.height,1]
+
                 
             
                 
@@ -248,15 +235,12 @@ class Slider(InteractionSpace):
         
     def is_valid(self,frame_data):
         for hand in frame_data.hands:
-            if (self.center[0]-self.width/2) <= hand.palm_position[0] <= (self.center[0]+self.width/2):
-                if (self.center[1]-self.height/2) <= hand.palm_position[1] <= (self.center[1]+self.height/2):
-                    if (self.center[2]-self.depth/2) <= hand.palm_position[2] <= (self.center[2]+self.depth/2):
-                        self.frame_data = frame_data
-                        self.buff.enqueue(frame_data)
-                        self.hand_id = hand.id                        
-                        return True
-                
-        return False
+            position = hand.palm_position
+            if super(Slider,self).is_valid(position):
+                #!!SIDE EFFECTS!! update state
+                self.frame_data = frame_data
+                self.buff.enqueue(frame_data)
+                self.hand_id = hand.id
             
                         
     def update(self,not_used):
@@ -265,8 +249,8 @@ class Slider(InteractionSpace):
             
             '''
             Calculate the angle mismatch from between the palm normal and the slider normal
-            if the two vectors are not parallel within angle_limit AND oriented opposite directions
-                then nothing will happen
+            if the two vectors are parallel within angle_limit AND oriented same directions
+                then slider will move
             
             '''
             for hand in self.frame_data.hands:            
@@ -276,26 +260,28 @@ class Slider(InteractionSpace):
                     angle = 180-self.angle_limit
                     if hand.sphere_radius >= 50:
                         if palm_normal.angle_to(slider_normal)*57.3 >= angle:
-                            if self.long_side[0] == self.depth:
-                                temp = (-hand.palm_position[self.long_side[1]])/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                            else:
-                                temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                            self.slider_value = int(temp)
+                            # if self.long_side[0] == self.depth:
+                            #     temp = (-hand.palm_position[self.long_side[1]])/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
+                            # else:
+                            #     temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
+                            # self.slider_value = int(temp)
                             
                         else:
                             print 'not aligned'
                             return
+                    else:
+                        pass
                 else:
                     pass
         else:
             for hand in self.frame_data.hands:            
                 if hand.id == self.hand_id: 
                     if hand.sphere_radius >= 50:            
-                        if self.long_side[0] == self.depth:
-                            temp = -hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                        else:
-                            temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                        self.slider_value = int(temp)
+                        # if self.long_side[0] == self.depth:
+                        #     temp = -hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
+                        # else:
+                        #     temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
+                        # self.slider_value = int(temp)
                 else:
                     pass
             
@@ -323,9 +309,32 @@ class PlanarPosition(InteractionSpace):
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
         super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
 
+    #@prefer_older_hands
     def is_valid(self,frame_data):
         #in this version of is_valid
         for hand in frame_data.hands:
             position = hand.palm_position
             if super(PlanarPosition,self).is_valid(position):
-                #!!scSIDE EFFECTS!! update state
+                #!!SIDE EFFECTS!! update state
+                self.frame_data = frame_data
+                self.buff.enqueue(frame_data)
+                # this causes the software to prefer the last hand in the queue
+                #POORLY DEFINED BEHAVIOR: FIX
+                self.hand_id = hand.id
+                return True
+            else:
+                return False
+
+
+class InteractionSpaceModifier(object):
+    '''Base class for hand state calculating functions
+
+    '''
+
+class DataFilter(object):
+    '''Base class for data processing modules
+
+    '''
+
+    def __init__(self,):
+
