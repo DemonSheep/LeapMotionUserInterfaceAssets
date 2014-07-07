@@ -193,8 +193,7 @@ class CubicButton(InteractionSpace):
         super(CubicButton,self).__init__(CENTER = CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH )
         self.press_direction = PRESS_DIRECTION
         self.button_buffer = Buffer()       
-        
-        
+            
     def is_valid(self,frame_data):
         return False #temp value for testing
     
@@ -227,12 +226,12 @@ class Slider(InteractionSpace):
         self.hand_id = None
         # figure out which direction the slider works in
         # direction is the largest dimension orthagonal to normal_direction        
-
+        if self.width >= self.depth:
+            self.longside = self.width
+        else
+            self.longside = self.depth
                 
-            
-                
-        
-        
+               
     def is_valid(self,frame_data):
         for hand in frame_data.hands:
             position = hand.palm_position
@@ -241,9 +240,13 @@ class Slider(InteractionSpace):
                 self.frame_data = frame_data
                 self.buff.enqueue(frame_data)
                 self.hand_id = hand.id
+                return True
+            else:
+                pass
+        return False
             
                         
-    def update(self,not_used):
+    def update(self,frame):
         NUMBER_OF_SPOTS = 20   
         if self.enforce_slider_normal is True:
             
@@ -323,18 +326,9 @@ class PlanarPosition(InteractionSpace):
                 self.hand_id = hand.id
                 return True
             else:
-                return False
+                pass
+        return False
 
 
-class InteractionSpaceModifier(object):
-    '''Base class for hand state calculating functions
 
-    '''
-
-class DataFilter(object):
-    '''Base class for data processing modules
-
-    '''
-
-    def __init__(self,):
 
