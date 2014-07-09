@@ -9,8 +9,8 @@ Released under MIT License
 import Leap
 import time
 import sys
-sys.path
 import VectorMath
+from Coroutines import *
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -94,7 +94,7 @@ class Buffer(object):
                 pass
             
 '''HANDLE USER INPUT ######################################################## '''
-
+# Do not need InteractionHandler in new design
 class InteractionHandler(object):
     
     def __init__(self):
@@ -149,27 +149,6 @@ class InteractionSpace(object):
         '''These are values that have nothing to do with reference frame'''
         self.gain = 1
 
-
-    
-    def is_valid(self,position):
-        '''Determine if a position given in Leap reference frame is inside 
-        Interaction volume
-
-        Parameters:
-        =============
-            position = (x,y,z) position in Leap frame of reference
-
-        '''
-        #convert Leap frame to local frame
-        local_position = convert_to_local_coordinates(position, basis = self.local_basis)
-        # check the bounds of the volume with our local_position
-        if (self.center[0]-self.width/2) <= local_position[0] <= (self.center[0]+self.width/2):
-            if (self.center[1]-self.depth/2) <= local_position[1] <= (self.center[1]+self.depth/2):
-                if (self.center[2]-self.height/2) <= local_position[2] <= (self.center[2]+self.height/2):                       
-                    return True
-                
-        return False
-
     def convert_to_local_coordinates(self,coordinates,basis = self.local_basis):
     	# find the relative vector from local origin to leap point
     	relative_vector = [value-self.center[index] for index,value in enumerate(coordinates)]
@@ -194,7 +173,7 @@ class CubicButton(InteractionSpace):
         self.press_direction = PRESS_DIRECTION
         self.button_buffer = Buffer()       
             
-    def is_valid(self,frame_data):
+    def is_valid_path(self,frame_data):
         return False #temp value for testing
     
     def update(self,frame_data):
@@ -328,7 +307,5 @@ class PlanarPosition(InteractionSpace):
             else:
                 pass
         return False
-
-
 
 

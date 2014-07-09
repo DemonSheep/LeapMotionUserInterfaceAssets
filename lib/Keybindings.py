@@ -8,6 +8,7 @@ Released under MIT License
 """
 
 from InteractionObjects import CubicButton,Slider
+from coroutine import coroutine
 
 class KeyBinding(object):
     '''
@@ -26,17 +27,24 @@ class KeyBinding(object):
         self.UE_list = [self.nuke_the_universe,self.bar,self.gain_slider]       
     
                                
-    '''BUTTON CALLBACKS ************************************************'''                           
-    
+    '''BUTTON CALLBACKS ************************************************'''     
+                          
+    @coroutine
     def nuke_universe(self):
-        print 'nukeing universe'
+        while True:
+            not_used = (yield)
+            if not_used is GeneratorExit:
+                
+            print 'nukeing universe'
         
+    @coroutine    
     def bar_func(self):
         slide = ['_']*20
         value = self.bar[0].slider_value
         slide.insert(value,'X')
         print "".join(slide),"gain:" ,self.bar[0].gain
-        
+    
+    @coroutine    
     def adjust_gain(self):
         slide = ['-']*20
         value = self.gain_slider[0].slider_value
