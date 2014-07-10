@@ -10,7 +10,11 @@ import Leap
 import time
 import sys
 import VectorMath
+#figure out these import statements
 from Coroutines import *
+from Coroutines import _pass_arguments
+from Coroutines import _sink, _enforce_one_finger, _select_a_hand
+from Coroutines import _finger_tip_position, _check_bounding_box_single_pointable
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -94,33 +98,6 @@ class Buffer(object):
                 pass
             
 '''HANDLE USER INPUT ######################################################## '''
-# Do not need InteractionHandler in new design
-class InteractionHandler(object):
-    
-    def __init__(self):
-        mybuffer = Buffer()
-        mytimer = TimeKeeper()
-    
-    def poll_interface_elements(self,list_of_elements,frame_data):
-        if frame_data:        
-            temp_list = []        
-            for element in list_of_elements:
-                try:
-                    if element[0].is_valid(frame_data):
-                        temp_list.append(element)
-                except AttributeError as error:
-                    print error
-                    
-        return temp_list
-        
-    def run_interaction_detection(self,list_of_valid_elements,frame_data):      
-        if list_of_valid_elements:  
-            for element in list_of_valid_elements:
-                #print element                
-                element[0].update(frame_data) # run the button call back
-                #print element[1]                
-                element[1]()
-                    
 
 class InteractionSpace(object):
     '''Define volumes and valid interations for human input
@@ -143,18 +120,25 @@ class InteractionSpace(object):
         self.height = HEIGHT
         self.depth = DEPTH
         # when we initialize we set up local coordinates
-        self.local_basis = VectorMath.generate_basis(normal_vector)
+        self.local_basis = VectorMath.generate_basis(self.normal)
 
 
         '''These are values that have nothing to do with reference frame'''
         self.gain = 1
 
-    def convert_to_local_coordinates(self,coordinates,basis = self.local_basis):
+    def convert_to_local_coordinates(self,coordinates,basis):
     	# find the relative vector from local origin to leap point
     	relative_vector = [value-self.center[index] for index,value in enumerate(coordinates)]
     	local_coordinates = VectorMath.decompose_vector(relative_vector,basis)
         return local_coordinates
 
+    @coroutine
+    def _data_listener(self,target):
+        while True:
+            frame = (yield)
+            args = [self,frame]
+            kwargs = {}
+            target.send((args,kwargs))
 
 class CubicButton(InteractionSpace):
     '''Create a button that can be pressed by moving fingers through a touch plane
@@ -168,19 +152,32 @@ class CubicButton(InteractionSpace):
         press_direction = unit vector normal to press plane
         
     '''
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,PRESS_DIRECTION = (0,0,-1)):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 100,PRESS_DIRECTION = (0,0,-1),callback = None):
         super(CubicButton,self).__init__(CENTER = CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH )
         self.press_direction = PRESS_DIRECTION
-        self.button_buffer = Buffer()       
+        self.button_buffer = Buffer()    
+        ###########################################
+        if callback is None:
+            callback = _sink()
+        '''Setup the data path'''
+        update = self.updating_path(callback)
+        valid_path = self.is_valid_path(update)
+        self.data_listener = self._data_listener(valid_path)
+
             
-    def is_valid_path(self,frame_data):
-        return False #temp value for testing
+    def is_valid_path(self,target):
+        #send target to last member
+        end = _check_bounding_box_single_pointable(target)
+        pipeA = _finger_tip_position(end)
+        pipeB = _enforce_one_finger(pipeA,'Index')
+        beginning = _select_a_hand(pipeB,'Right')
+        return beginning
+
     
-    def update(self,frame_data):
-        '''
-        This is where the button decides if the user is interacting with it
-        '''        
-        self.button_buffer.enqueue(frame_data)
+    def updating_path(self,callback):
+        beginning = _pass_arguments(callback)
+        return beginning 
+
         
         
 class Slider(InteractionSpace):
@@ -207,7 +204,7 @@ class Slider(InteractionSpace):
         # direction is the largest dimension orthagonal to normal_direction        
         if self.width >= self.depth:
             self.longside = self.width
-        else
+        else:
             self.longside = self.depth
                 
                
@@ -247,10 +244,10 @@ class Slider(InteractionSpace):
                             # else:
                             #     temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
                             # self.slider_value = int(temp)
-                            
+                            pass
                         else:
                             print 'not aligned'
-                            return
+                            return False
                     else:
                         pass
                 else:
@@ -264,11 +261,12 @@ class Slider(InteractionSpace):
                         # else:
                         #     temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
                         # self.slider_value = int(temp)
+                        pass
                 else:
                     pass
             
-        
-class PlanarPosition(InteractionSpace):
+     
+#class PlanarPosition(InteractionSpace):
         '''Create a Planar Position sensor that producess a linear output with position in a plane
     
     Attributes:
@@ -288,10 +286,12 @@ class PlanarPosition(InteractionSpace):
         reference frame is determined from the normal vector. The raw input 
         from the Leap will be converted into local reference frame coordinates.
         '''
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
-        super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
 
-    #@prefer_older_hands
+    #def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
+        super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
+        pass
+
+    
     def is_valid(self,frame_data):
         #in this version of is_valid
         for hand in frame_data.hands:
@@ -307,5 +307,7 @@ class PlanarPosition(InteractionSpace):
             else:
                 pass
         return False
+
+
 
 
