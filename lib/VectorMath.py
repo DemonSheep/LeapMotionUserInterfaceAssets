@@ -71,11 +71,12 @@ class Quaternion(object):
         quat[2] = math.sin(angle/2)*normed_axis[1]
         quat[3] = math.sin(angle/2)*normed_axis[2]
         return quat
+
         
 '''END OF THIS WORKS**********************************************'''
 
 PRACTICALLY_ZERO = 0.000000001
-    
+
 def check_orthagonal(vectorA,vectorB):
     assert len(vectorA) == len (vectorB)
     dot = lambda x,y: sum(x[i]*y[i] for i,v in enumerate(x))
@@ -176,63 +177,74 @@ def decompose_vector(vector,basis):
 
         
     
-    
-        
+           
 ''' ***************************** TESTS *******************************'''
 
-def orthagonal_test():        
-    x = (1,0,0)
-    x_ = (-1,0,0)
-    y = (0,-.9999999,0.00000000002) 
-    assert (check_orthagonal(x,x) == False)
-    assert (check_orthagonal(x,x_) == False)
-    assert (check_orthagonal(x,y) == True)
-       
-def basis_test():
-    x = (1,0,0)
-    y = (0,1,0)
-    z = (0,0,1)
-    other = (1,1,1)
-    print generate_basis((1,1,0)),'\n'
+if __name__ == '__main__':
     
-def quaternion_test():
-    PRACTICALLY_ZERO = 0.000000001
-    myvector = (0,1,0,0)
-    myquaternion = Quaternion.compose_quaternion(math.pi/6,(0,0,1))
-    revolved = Quaternion.rotation(myvector,myquaternion)
-    assert (math.cos(math.pi/6)-PRACTICALLY_ZERO) < revolved[0] < (math.cos(math.pi/6)+PRACTICALLY_ZERO)
-    assert (math.sin(math.pi/6)-PRACTICALLY_ZERO) < revolved[1] < (math.sin(math.pi/6)+PRACTICALLY_ZERO)    
-    print revolved
-    
-def cross_product_test():
-    x = (1,0,0)
-    y = (0,1,0)
-    z = (0,0,1)
-    other = (1,1,1)
-    cross, angle = cross_product(z,other)
-    print cross
-    print angle
-    print math.degrees(angle)
-    bad_vec = (0,0,0,1)
-    print 'This should say vector A is bad:'
-    cross_product(bad_vec,z)
-    print 'This should say vector B is bad:'
-    cross_product(z,bad_vec)
+    def orthagonal_test():        
+        x = (1,0,0)
+        x_ = (-1,0,0)
+        y = (0,-.9999999,0.00000000002) 
+        assert (check_orthagonal(x,x) == False)
+        assert (check_orthagonal(x,x_) == False)
+        assert (check_orthagonal(x,y) == True)
+           
+    def basis_test():
+        x = (1,0,0)
+        y = (0,1,0)
+        z = (0,0,1)
+        other = (1,1,1)
+        print generate_basis((1,1,0)),'\n'
+        
+    def quaternion_test():
+        PRACTICALLY_ZERO = 0.000000001
+        myvector = (0,1,0,0)
+        myquaternion = Quaternion.compose_quaternion(math.pi/6,(0,0,1))
+        revolved = Quaternion.rotation(myvector,myquaternion)
+        assert (math.cos(math.pi/6)-PRACTICALLY_ZERO) < revolved[0] < (math.cos(math.pi/6)+PRACTICALLY_ZERO)
+        assert (math.sin(math.pi/6)-PRACTICALLY_ZERO) < revolved[1] < (math.sin(math.pi/6)+PRACTICALLY_ZERO)    
+        print revolved
+        
+    def cross_product_test():
+        x = (1,0,0)
+        y = (0,1,0)
+        z = (0,0,1)
+        other = (1,1,1)
+        cross, angle = cross_product(z,other)
+        print cross
+        print angle
+        print math.degrees(angle)
+        bad_vec = (0,0,0,1)
+        print 'This should say vector A is bad:'
+        cross_product(bad_vec,z)
+        print 'This should say vector B is bad:'
+        cross_product(z,bad_vec)
 
-def decompose_vector_test():
-    mybasis = [[1,0,0],[0,1,0],[0,0,1]]
-    myvector = (1,2,3)
-    assert decompose_vector(myvector,mybasis) == [1,2,3]
-    another_basis = [[1,2,3],[0,0,0],[0,0,0]]
-    print decompose_vector(myvector,another_basis)
-    
-#cross_product_test()
-    
-#quaternion_test()
+    def decompose_vector_test():
+        mybasis = [[1,0,0],[0,1,0],[0,0,1]]
+        myvector = (1,2,3)
+        assert decompose_vector(myvector,mybasis) == [1,2,3]
+        another_basis = [[1,2,3],[0,0,0],[0,0,0]]
+        print decompose_vector(myvector,another_basis)
 
-#basis_test()
+    def vector_rotation_test():
+        z = (0,0,1)
+        really_close = (0,0,.99999999999)
+        angle = math.pi/4
+        # we will try to rotate a vector about itself
+        this_quaternion = Quaternion.compose_quaternion(angle,z)
+        print 'Should be practically: ',really_close
+        print 'Result: ',Quaternion.rotation(really_close,this_quaternion)
 
-#decompose_vector_test()
+    vector_rotation_test()   
+    #cross_product_test()
+    
+    #quaternion_test()
+
+    #basis_test()
+
+    #decompose_vector_test()
 
 
 
