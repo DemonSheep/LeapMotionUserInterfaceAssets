@@ -38,10 +38,23 @@ def frame_broadcaster(targets):
         #loop over all our interaction objects and send them the frame data
         target.send(frame)
 
+'''############## Optimized for one pointable object only ##################'''
+''' Coroutines with the prefix ** _single ** will only accept certain keys in kwargs.
+    These are only looking for a single pointable instance and will yield if it is not present.
+    This works by only taking the first pointable object off the applicable list.
+    Use these types of coroutines when you only want a specific interaction to take place; 
+    for example: a button that can only be pressed by the index finger of a right hand. The 
+    assumption being that there will only be one operator at a time and therefor one right hand
+    at a time. You should be aware of the risks of using ** _single ** coroutines however they are
+    faster becasue they have no loops.
+
+'''
+
 @coroutine
-def _enforce_specific_finger(target,finger_name):#input shuld be a string
+def _single_enforce_specific_finger(target,finger_name):#input shuld be a string
     '''Take a hand instance and select one finger in the hand pass down the pipeline
     
+    MODIFIES STREAM
     '''
 
     finger_names = {'thumb':0,'index':1,'middle':2,'ring':3,'pinky':4}
@@ -49,30 +62,27 @@ def _enforce_specific_finger(target,finger_name):#input shuld be a string
     my_finger_type = finger_names[finger_name] # get the type value for the SDK
     while True:
         args,kwargs = (yield)
-        # if there are pointables we will look for hands
-        if 'pointable_list' in kwargs.keys() and kwargs['pointable_list']:
-            #there is an object to do
-            for pointable in kwargs['pointable_list']:
-                if 'HAND' == pointable[1]:
-                    hand = pointable[0]
-                    # if the finger is not in the hand the below operaition will create an invalid finger object
-                    fingers = hand.fingers
-                    for test_finger in fingers:
-                        if test_finger.type() == my_finger_type:
-                            finger = test_finger
-                            if finger.is_valid:
-                                kwargs['finger'] = finger #add the finger and overwrite any existing fingers
-                                break # there can only be one of each finger per hand, no pont in looking for more
-                        else: #the finger we asked for is not the finger we are lookig at
-                            continue #jump to next finger
-                else:
-                    continue # jump to next pointable and see if hand
+        if 'hand' in kwargs.keys():
+            hand = kwargs['hand']
+            # if the finger is not in the hand the below operaition will create an invalid finger object
+            fingers = hand.fingers
+            for test_finger in fingers:
+                if test_finger.type() == my_finger_type:
+                    finger = test_finger
+                    if finger.is_valid:
+                        kwargs['finger'] = finger #add the finger and overwrite any existing fingers
+                        break # there can only be one of each finger per hand, no pont in looking for more
+                else: #the finger we asked for is not the finger we are lookig at
+                    continue #jump to next finger
         else: #we did not have a pointable list to look for fingers
             continue #return control up the pipeline
         target.send((args,kwargs))
 
 @coroutine
-def _finger_tip_position(target):
+def _single_finger_tip_position(target):
+    '''
+    MODIFIES STREAM
+    '''
     while True:
         args,kwargs = (yield)
         if 'finger' in kwargs.keys():
@@ -93,7 +103,102 @@ def _finger_tip_position(target):
             raise SyntaxError, r"You must send a finger object in stream: kwargs['finger'] = finger_object"
 
 @coroutine
+def _single_hand_palm_position(target):
+    '''
+    MODIFIES STREAM
+    '''
+    while True:
+        args,kwargs = (yield)
+        if 'hand' in kwargs.keys() and kwargs['hand']: # check for presence of pointables
+            hand = kwargs['hand']
+            #getting palm position is whole point of this coroutine
+            palm_position = hand.palm_position
+            #explicitly built list because it is so short
+            kwargs['position'] = palm_position
+        else:
+            continue #no pointables were in list so stop pipe and yield up line
+        target.send((args,kwargs))
+
+@coroutine
+def _single_select_a_hand(target,hand_name): #will take 'left' or 'right'
+    '''
+    MODIFIES STREAM
+    '''
+    if 'left' == hand_name.lower():
+        hand_flag = True
+    elif 'right' == hand_name.lower():
+        hand_flag = False
+    else:
+        raise SyntaxError,"hand_name parameter must be either 'left' or 'right' "
+    while True:
+        args,kwargs = (yield)
+        frame = args[1]
+        for hand in frame.hands:
+            if (hand.is_left and hand_flag):# do xor to
+                kwargs['hand'] = hand
+            elif hand.is_right ^ hand_flag: 
+                kwargs['hand'] = hand
+            else:
+                continue
+        target.send((args,kwargs))
+
+@coroutine
+def _single_check_bounding_box_pointable(target):
+    '''Determine if a position given in Leap reference frame is inside 
+    Interaction volume
+
+    DOES NOT MODIFY STREAM
+
+    Parameters:
+    =============
+        position = (x,y,z) position in Leap reference frame
+
+    Requires:
+    =============
+        needs a class instance passed down throught args[0]
+        class should have:
+            tuple self.center = (x,y,z)
+            int self.width
+            int self.depth
+            int self.height
+            function self.convert_to_local_coordinates()
+
+    '''
+    #convert Leap frame to local frame
+    while True:
+        args,kwargs = (yield)
+        self = args[0]
+        frame = args[1]
+        #make sure that we get a position
+        assert ('position' in kwargs.keys()) == True
+        position = kwargs['position']
+        #HOTFIX because Leap.Vector does not support iteration
+        temp = [position[0],position[1],position[2]]
+        local_position = self.convert_to_local_coordinates(temp, basis = self.local_basis)
+        # check the bounds of the volume with our local_position
+        if (-self.width/2) <= local_position[0] <= (self.width/2):
+            if (-self.depth/2) <= local_position[1] <= (self.depth/2):
+                if (-self.height/2) <= local_position[2] <= (self.height/2): 
+                    #the check passes so we send on the data to next step
+                    target.send((args,kwargs))
+
+'''#################### End of single pointable optimized ######################'''
+
+'''################### Begin multiple pointable support #####################'''
+''' All functions in this section will operate on pointable_list or pointable_position_list
+    Functions will not close the stream if they do not find what they are looking for
+    If a user wants to terminate a stream based on empty condition for a list of pointables 
+    an explicit call to _if_empty_then_terminate_stream('list_to_check') must be made.
+    This supports more flexible design patterns with multiple posibilities for interaction
+    such as mixing streams.
+'''
+
+
+@coroutine
 def _hand_palm_position(target):
+    '''
+    MODIFIES STREAM
+    '''
     while True:
         args,kwargs = (yield)
         if 'pointable_list' in kwargs.keys(): # check for presence of pointables
@@ -106,7 +211,7 @@ def _hand_palm_position(target):
                     palm_position = hand.palm_position
                     #explicitly built list because it is so short
                     kwargs['pointable_position_list'].append([pointable[0],pointable[1],palm_position])
-                else: #type is wrong ss we continue the loop
+                else: #type is wrong so we continue the loop
                     continue
         else:
             continue #no pointables were in list so stop pipe and yield up line
@@ -115,6 +220,8 @@ def _hand_palm_position(target):
 @coroutine
 def _enforce_hand_sphere_radius(target,radius_limit):
     '''Remove hand objects from pointable_list that do not meet sphere radius inequality
+
+    MODIFIES STREAM
 
     Casts both sides of comparison to integers for speed.
     The sphere_radius will not be used in a precise enough context 
@@ -164,7 +271,10 @@ def _enforce_hand_sphere_radius(target,radius_limit):
         target.self((args,kwargs))
 
 @coroutine
-def _select_a_hand(target,hand_name): # will take 'left' or 'right'
+def _select_a_hand(target,hand_name): #will take 'left' or 'right'
+    '''
+    MODIFIES STREAM
+    '''
     if 'left' == hand_name.lower():
         hand_flag = True
     elif 'right' == hand_name.lower():
@@ -192,6 +302,8 @@ def _select_a_hand(target,hand_name): # will take 'left' or 'right'
 def _check_bounding_box_all_pointable(target):
     '''Determine if a position given in Leap reference frame is inside 
     Interaction volume
+
+    MODIFIES STREAM
 
     Parameters:
     =============
@@ -223,7 +335,8 @@ def _check_bounding_box_all_pointable(target):
             continue
         else:
             #clean up stream
-            del kwargs['pointable_position_list']
+            #del kwargs['pointable_position_list'] NOT CLEANING UP STREAM FOR NOW
+            pass
         for local_pointable in pointable_position_list:
             # look in the second index of each pointable for the preprocessed position
             position = local_pointable[2]
@@ -247,51 +360,26 @@ def _check_bounding_box_all_pointable(target):
             target.send((args,kwargs))
 
 @coroutine
-def _check_bounding_box_single_pointable(target):
-    '''Determine if a position given in Leap reference frame is inside 
-    Interaction volume
-
-    Parameters:
-    =============
-        position = (x,y,z) position in Leap reference frame
-
-    Requires:
-    =============
-        must be passed a class instance that has following properties
-            tuple self.center = (x,y,z)
-            int self.width
-            int self.depth
-            int self.height
-            function self.convert_to_local_coordinates()
-
-    '''
-    #convert Leap frame to local frame
-    while True:
-        args,kwargs = (yield)
-        self = args[0]
-        frame = args[1]
-        #make sure that we get a position
-        assert ('position' in kwargs.keys()) == True
-        position = kwargs['position']
-        #HOTFIX because Leap.Vector does not support iteration
-        temp = [position[0],position[1],position[2]]
-        local_position = self.convert_to_local_coordinates(temp, basis = self.local_basis)
-        # check the bounds of the volume with our local_position
-        if (-self.width/2) <= local_position[0] <= (self.width/2):
-            if (-self.depth/2) <= local_position[1] <= (self.depth/2):
-                if (-self.height/2) <= local_position[2] <= (self.height/2): 
-                    #the check passes so we send on the data to next step
-                    target.send((args,kwargs))
-
-@coroutine
 def _prefer_older_pointable(target):
     '''Check the class instace if there is a pointable that is already interacting
+
+    MODIFIES STREAM
+
+    This will filter pointables that are valid in an interaction object and give 
+    control priority to the pointable seen last frame. If the pointable id from 
+    the previous frame does not match any of the visible pointable, the first pointable
+    in the list of pointables will be accepted.
 
     Requirements:
     ====================
         needs a class instance passed down throught args[0]
-        class should have
+        class should have:
             self.interacting_id = id of the pointable that was already interacting
+
+    Stream Data:
+    ==============
+        this coroutine will look for pointable_position_list or if that is not present then
+        will fallback to pointable_list.
 
 
     '''
@@ -299,10 +387,13 @@ def _prefer_older_pointable(target):
         args,kwargs = (yield)
         self = args[0]
         frame = args[1]
+        #look for pointable list
 
 @coroutine
 def _add_tools_to_pointable_list(target):
     '''Get all valid tools from frame and add to the pointable_list
+
+    MODIFIES STREAM
 
     Parameters:
     =============
@@ -333,6 +424,8 @@ def _add_tools_to_pointable_list(target):
 def _add_hands_to_pointable_list(target):
     '''Get all valid hands from frame and add their palm to the pointable_position_list
 
+    MODIFIES STREAM
+
     Parameters:
     =============
         frame = Leap.Frame object
@@ -360,6 +453,9 @@ def _add_hands_to_pointable_list(target):
 
 @coroutine
 def _pass_arguments(target):
+    '''
+    DOES NOT MODIFY STREAM
+    '''
     while True:
         args,kwargs = (yield)
         #print 'Just passing through'
@@ -367,11 +463,79 @@ def _pass_arguments(target):
 
 @coroutine
 def _sink():
+    '''
+    DOES NOT MODIFY STREAM
+    '''
     while True:
         args,kwargs = (yield)
         print 'hit sink'
 
 @coroutine
-def _simple_one_axis_position_from_position(target,axis): #axis is string name of axis in local frame
-    pass
+def _simple_one_axis_position_from_position(target,axis,resolution): #axis is string name of axis in local frame
+    '''Take pointable position and clamp to local axis of Interaction object
 
+    DOES NOT MODIFY STREAM
+
+    Parameters:
+    =============
+        axis = 'x' or 'y' or 'z'  the string name of the axis.
+
+    Requirements:
+    ==================
+        needs a class instance passed down throught args[0]
+        class should have:
+            self.clamped_(axis_name) = axis name will be the string name of axis 
+                                    so if axis is x then self.clamped_x will be made to exist
+            [self.gain] will be checked but will not coroutine fail if does not exist
+
+
+
+    '''
+    # do some preprocessign  to grab the indexes out of the position faster
+    #rather than passing in
+    if 'x' == axis.lower():
+        axis_index = 0
+        side_choice = lambda s: getattr(s,'depth')
+    elif 'y' == axis.lower():
+        axis_index = 1
+        side_choice = lambda s: getattr(s,'width')
+    elif 'z' == axis.lower():
+        axis_index = 2
+        side_choice = lambda s: getattr(s,'height')
+    else:
+        #poor soul did not use string form
+        raise SyntaxError,"You must specify the axis in string form: 'x' 'y' or 'z' "
+    while True:
+        args,kwargs =  (yield)
+        self = args[0]
+        frame = args[1]
+        #check that there is a position in stream with extra check to make sure it is non empty
+        if 'position' in kwargs['position'] and kwargs['position']:
+            try:
+                gain = getattr(self,'gain')
+            except AttributeError:
+                #make gain the identity
+                gain = 1
+            #get the side we will be working with
+            side = side_choice(self)
+            #BAD FLOATING POINT MATH not sure how to FIX?
+            #calculate the size of the partition but cast to float
+            partition = side/float(resolution)
+            #calculate the output by the 
+            output = (position[axis_index]*gain/partition)+side/2.0
+            #clamp the output to the size of the interaction box
+            if output > side:
+                output = side
+            elif output < 0:
+                output = 0
+            else:
+                pass
+            #take care of missing attribute and set output
+            setattr(self,'clamped_'+axis.lower(),output)
+
+
+        else:
+            #there was not a position in stream so we yield control back up
+            continue
+        #this was an state update but we pass the stream on none the less
+        target.send((args,kwargs))

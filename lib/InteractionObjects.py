@@ -165,10 +165,10 @@ class CubicButton(InteractionSpace):
             
     def is_valid_path(self,target):
         #send target to last member
-        end = Coroutines._check_bounding_box_single_pointable(target)
-        pipeA = Coroutines._finger_tip_position(end)
-        pipeB = Coroutines._enforce_specific_finger(pipeA,'Index')
-        beginning = Coroutines._select_a_hand(pipeB,'Right')
+        end = Coroutines._single_check_bounding_box_pointable(target)
+        pipeA = Coroutines._single_finger_tip_position(end)
+        pipeB = Coroutines._single_enforce_specific_finger(pipeA,'Index')
+        beginning = Coroutines._single_select_a_hand(pipeB,'Right')
         return beginning
 
     
@@ -198,9 +198,9 @@ class Slider(InteractionSpace):
         # direction is the largest dimension orthagonal to normal_direction        
         if self.width >= self.depth:
             #integer to represent the index to clamp
-            self.slider_direction = 0
+            self.slider_direction = 'x'
         else:
-            self.slider_direction = 1 
+            self.slider_direction = 'y'
                 
                
     def is_valid(self,frame_data):
