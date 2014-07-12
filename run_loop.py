@@ -8,7 +8,7 @@ Released under MIT License
 """
 
 #Next bunch of lines are a hack
-# Fix when I understand realitive paths and modules
+# Fix when I understand relative paths and modules
 import sys
 import os
 
@@ -17,6 +17,7 @@ sys.path.insert(0,os.path.dirname(__file__))
 from lib.Keybindings import *
 from lib.InteractionObjects import *
 from lib.Robot import *
+from lib.Coroutines import *
 
         
 
@@ -89,22 +90,33 @@ def key_bind_test():
     
 def slider_run_test():
     keybind = KeyBinding()
-    Inter = InteractionHandler()
     keybind.bar[0].gain = 2
     keybind.gain_slider[0].enforce_slider_normal = False
     
     #loop
     for i in range(6000):
-        frame = get_data()
-        list_of_elements = Inter.poll_interface_elements(keybind.UE_list,frame)
-        Inter.run_interaction_detection(list_of_elements,frame)
+        #this is all changing
+        # frame = get_data()
+        # list_of_elements = Inter.poll_interface_elements(keybind.UE_list,frame)
+        # Inter.run_interaction_detection(list_of_elements,frame)
         print '**********************************'
 
         time.sleep(.01)
 
     
-    
+def button_run_test():
+    keybind = KeyBinding()
+    # only take the first  element since that is our button
+    button = keybind.UE_list[0]
+    target = button.data_listener
+    for i in range(400):
+        frame_broadcaster([target]) 
+        time.sleep(.05)
+        print i
+
     
 ''' RUN TESTS HERE ############################################################'''
 
-slider_run_test()
+#slider_run_test()
+
+button_run_test()
