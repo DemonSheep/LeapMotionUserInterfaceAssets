@@ -11,10 +11,8 @@ import time
 import sys
 import VectorMath
 #figure out these import statements
-from Coroutines import *
-from Coroutines import _pass_arguments
-from Coroutines import _sink, _enforce_one_finger, _select_a_hand
-from Coroutines import _finger_tip_position, _check_bounding_box_single_pointable
+import Coroutines
+from Coroutines import coroutine
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -167,15 +165,15 @@ class CubicButton(InteractionSpace):
             
     def is_valid_path(self,target):
         #send target to last member
-        end = _check_bounding_box_single_pointable(target)
-        pipeA = _finger_tip_position(end)
-        pipeB = _enforce_one_finger(pipeA,'Index')
-        beginning = _select_a_hand(pipeB,'Right')
+        end = Coroutines._single_check_bounding_box_pointable(target)
+        pipeA = Coroutines._single_finger_tip_position(end)
+        pipeB = Coroutines._single_enforce_specific_finger(pipeA,'Index')
+        beginning = Coroutines._single_select_a_hand(pipeB,'Right')
         return beginning
 
     
     def updating_path(self,callback):
-        beginning = _pass_arguments(callback)
+        beginning = Coroutines._pass_arguments(callback)
         return beginning 
 
         
@@ -194,80 +192,25 @@ class Slider(InteractionSpace):
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
         super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH )
         self.normal_direction = NORMAL_DIRECTION
-        self.enforce_slider_normal = True
-        self.angle_limit = 15 # angle of cone from normal
-        self.slider_value = 0
         self.buff = Buffer()
         self.gain = 1
-        self.hand_id = None
         # figure out which direction the slider works in
         # direction is the largest dimension orthagonal to normal_direction        
         if self.width >= self.depth:
-            self.longside = self.width
+            #integer to represent the index to clamp
+            self.slider_direction = 'x'
         else:
-            self.longside = self.depth
+            self.slider_direction = 'y'
                 
                
     def is_valid(self,frame_data):
-        for hand in frame_data.hands:
-            position = hand.palm_position
-            if super(Slider,self).is_valid(position):
-                #!!SIDE EFFECTS!! update state
-                self.frame_data = frame_data
-                self.buff.enqueue(frame_data)
-                self.hand_id = hand.id
-                return True
-            else:
-                pass
-        return False
-            
+        pass
                         
     def update(self,frame):
-        NUMBER_OF_SPOTS = 20   
-        if self.enforce_slider_normal is True:
-            
-            '''
-            Calculate the angle mismatch from between the palm normal and the slider normal
-            if the two vectors are parallel within angle_limit AND oriented same directions
-                then slider will move
-            
-            '''
-            for hand in self.frame_data.hands:            
-                if hand.id == self.hand_id:                    
-                    palm_normal = hand.palm_normal
-                    slider_normal = Leap.Vector(*self.normal_direction)
-                    angle = 180-self.angle_limit
-                    if hand.sphere_radius >= 50:
-                        if palm_normal.angle_to(slider_normal)*57.3 >= angle:
-                            # if self.long_side[0] == self.depth:
-                            #     temp = (-hand.palm_position[self.long_side[1]])/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                            # else:
-                            #     temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                            # self.slider_value = int(temp)
-                            pass
-                        else:
-                            print 'not aligned'
-                            return False
-                    else:
-                        pass
-                else:
-                    pass
-        else:
-            for hand in self.frame_data.hands:            
-                if hand.id == self.hand_id: 
-                    if hand.sphere_radius >= 50:            
-                        # if self.long_side[0] == self.depth:
-                        #     temp = -hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                        # else:
-                        #     temp = hand.palm_position[self.long_side[1]]/(self.long_side[0]/NUMBER_OF_SPOTS)*self.gain +NUMBER_OF_SPOTS/2
-                        # self.slider_value = int(temp)
-                        pass
-                else:
-                    pass
-            
+        pass
      
-#class PlanarPosition(InteractionSpace):
-        '''Create a Planar Position sensor that producess a linear output with position in a plane
+class PlanarPosition(InteractionSpace):
+    '''Create a Planar Position sensor that producess a linear output with position in a plane
     
     Attributes:
     ==================
@@ -287,7 +230,7 @@ class Slider(InteractionSpace):
         from the Leap will be converted into local reference frame coordinates.
         '''
 
-    #def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
         super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
         pass
 
