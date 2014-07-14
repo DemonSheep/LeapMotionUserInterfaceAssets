@@ -7,7 +7,7 @@ Copyright (c) 2014
 Released under MIT License
 """
 
-from InteractionObjects import CubicButton,Slider,PlanarPosition
+from InteractionObjects import CubicButton,Slider,PlanarPosition,ThreeDimensionPosition
 from Coroutines import coroutine
 
 class KeyBinding(object):
@@ -50,9 +50,14 @@ class KeyBinding(object):
         #package the instance and the callback
         self.planar_1 = PlanarPosition(CENTER=(0,300,0),WIDTH = 400, HEIGHT = 200,DEPTH = 400,callback = self.planar_slide)
 
+        self.three_dimension = self._three_dimension()
+        #package the instance and the callback
+        self.threeD_1 = ThreeDimensionPosition(CENTER=(0,300,0),WIDTH = 400, HEIGHT = 200,DEPTH = 400,callback = self.three_dimension)        
+
         '''Make the list of all UI elements '''
         #self.UE_list = [self.button_1,self.slider_1,self.slider_2]       
-        self.UE_list = [self.planar_1]
+        #self.UE_list = [self.planar_1]
+        self.UE_list = [self.threeD_1]
                                
     '''BUTTON CALLBACKS ************************************************'''     
                           
@@ -123,9 +128,53 @@ class KeyBinding(object):
                 x = self.planar_1.clamped_x
                 y = self.planar_1.clamped_y
                 y = height -y
-                print 'X:',x,"Y:",y
                 fresh_board = player_position(fresh_board,x,y)
                 print_board(fresh_board)
+        except GeneratorExit:
+            print'slider_2 closing'
+
+    @coroutine
+    def _three_dimension(self):
+        from copy import deepcopy
+        length = 30
+        height = 20
+        board = []
+        vertical_bar = []
+        for i in range(height):
+            if i == 0 or i == height-1:
+                board.append(["#"] * length)
+                vertical_bar.append(["-"]*3)
+            else:
+                temp = ["#","#"]
+                vertical_bar.append(['|',' ','|'])
+                for i in range(length-2):
+                    temp.insert(1," ")
+                board.append(temp)
+
+        def print_board(board,vertical_bar):
+            for index,row in enumerate(board):
+                row = row+vertical_bar[index]
+                print "".join(row)
+
+
+
+        def player_position(board,x,y):
+            board[y][x] = 'X'
+            return board
+
+        try:
+            while True:
+                args,kwargs = (yield)
+                fresh_board = deepcopy(board)
+                side_bar = deepcopy(vertical_bar)
+                x = self.threeD_1.clamped_x
+                y = self.threeD_1.clamped_y
+                z = self.threeD_1.clamped_z
+                y = height -y
+                z = height -z
+                fresh_board = player_position(fresh_board,x,y)
+                side_bar[z][1] = 'H'
+                print_board(fresh_board,side_bar)
         except GeneratorExit:
             print'slider_2 closing'
 

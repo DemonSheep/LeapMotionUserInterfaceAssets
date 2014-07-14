@@ -271,6 +271,53 @@ class PlanarPosition(InteractionSpace):
     
 
 
+class ThreeDimensionPosition(InteractionSpace):
+    '''Create a Planar Position sensor that producess a linear output with position in a plane
+    
+    Attributes:
+    ==================
+        center = (x,y,z) center of button is  equidistant from all sides
+        width  = width of the button, measured along x-axis
+        height = height of the button, measured along the y-axis
+        depth  = depth of the button, measured along the z-axis
+        normal_direction = unit vector normal to plane
+        enforce_planar_normal = Boolean to determine whether hand orientation is 
+            used to determine sucessful interaction.
 
+    Behaviour:
+    ==================
+        The Planar object has two outputs, an x and y component of measured 
+        movement in the ThreeDimensionPosition object's own reference frame. The  
+        reference frame is determined from the normal vector. The raw input 
+        from the Leap will be converted into local reference frame coordinates.
+        '''
+
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
+        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
+        self.normal_direction = NORMAL_DIRECTION
+
+        if callback is None:
+            callback = Coroutines._sink()
+        '''Setup the data path'''
+        update = self.updating_path(callback)
+        valid_path = self.is_valid_path(update)
+        self.data_listener = self._data_listener(valid_path) 
+
+
+    def is_valid_path(self,target):
+        end = Coroutines._enforce_hand_sphere_radius(target,-50)
+        pipeA = Coroutines._prefer_older_pointable(end)
+        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        pipeC = Coroutines._hand_palm_position(pipeB)
+        beginning = Coroutines._add_hands_to_pointable_list(pipeC)
+        return beginning
+                        
+    def updating_path(self,callback):
+        end = Coroutines._simple_one_axis_position_from_position(callback,'x',30)
+        pipeA = Coroutines._simple_one_axis_position_from_position(end,'y',20)
+        beginning = Coroutines._simple_one_axis_position_from_position(pipeA,'z',20)
+        #start = Coroutines._pass_arguments(beginning)
+
+        return beginning
 
 
