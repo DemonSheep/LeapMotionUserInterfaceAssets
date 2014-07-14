@@ -189,7 +189,7 @@ class Slider(InteractionSpace):
         normal_direction = unit vector normal to slider plane
         enforce_slider_normal = [True]  
     '''
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH )
         self.normal_direction = NORMAL_DIRECTION
         self.buff = Buffer()
@@ -201,12 +201,18 @@ class Slider(InteractionSpace):
             self.slider_direction = 'x'
         else:
             self.slider_direction = 'y'
-                
+
+        if callback is None:
+            callback = _sink()
+        '''Setup the data path'''
+        update = self.updating_path(callback)
+        valid_path = self.is_valid_path(update)
+        self.data_listener = self._data_listener(valid_path)                
                
-    def is_valid(self,frame_data):
-        pass
+    def is_valid(self,target):
+        end =  (target)
                         
-    def update(self,frame):
+    def updating_path(self,callback):
         pass
      
 class PlanarPosition(InteractionSpace):
