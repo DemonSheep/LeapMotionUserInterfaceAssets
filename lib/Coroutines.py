@@ -203,7 +203,7 @@ def _hand_palm_position(target):
         args,kwargs = (yield)
         if 'pointable_list' in kwargs.keys(): # check for presence of pointables
             for pointable in kwargs['pointable_list']: # loop through all the objects
-                if pointable[1] == 'HAND': #get only the hand pointable
+                if pointable['type'] == 'HAND': #get only the hand pointable
                     hand = pointable['object'] #grab out the hand object, only for readability
                     #getting palm position is whole point of this coroutine
                     palm_position = hand.palm_position
@@ -266,7 +266,7 @@ def _enforce_hand_sphere_radius(target,radius_limit):
                     continue # was not a hand so continue to look for one
         else:
             continue # stop pipe and yield beacuse there was no valid pointables
-        target.self((args,kwargs))
+        target.send((args,kwargs))
 
 @coroutine
 def _select_a_hand(target,hand_name): #will take 'left' or 'right'
@@ -344,21 +344,20 @@ def _check_bounding_box_all_pointable(target):
             #HOTFIX because Leap.Vector does not support iteration
             temp = [position[0],position[1],position[2]]
             #translate the position to local origin
-            temp = [value - self.center[index] for index,value in enumerate(temp)]
             local_position = self.convert_to_local_coordinates(temp,self.local_basis)
             # check the bounds of the volume with our local_position
             #center is in Leap coordinates so we are careful with
-            if (self.width/2) <= local_position[0] <= (self.width/2):
-                if (self.depth/2) <= local_position[1] <= (self.depth/2):
-                    if (self.height/2) <= local_position[2] <= (self.height/2): 
+            if (-self.width/2) <= local_position[0] <= (self.width/2):
+                if (-self.depth/2) <= local_position[1] <= (self.depth/2):
+                    if (-self.height/2) <= local_position[2] <= (self.height/2): 
                         #the check passes so we append the pointable to the valid list
-                        #pointable is a list
-                        #only grab the id = local_pointable[0] and the type_name = local_pointable[1]
+                        #pointable is a dictionary
+                        #overwrite the position to local coordinates so other parts can use that
+                        local_pointable['position'] = local_position
                         valid_pointable_list.append(local_pointable)
-                        continue
             #place a new field with the 
-            kwargs['pointable_list'] = valid_pointable_list
-            target.send((args,kwargs))
+        kwargs['pointable_list'] = valid_pointable_list
+        target.send((args,kwargs))
 
 @coroutine
 def _prefer_older_pointable(target):
@@ -375,11 +374,13 @@ def _prefer_older_pointable(target):
     ====================
         needs a class instance passed down throught args[0]
         class should have:
-            self.interacting_id = id of the pointable that was already interacting
+            
 
     Stream Data:
     ==============
         this coroutine will look for pointable_list.
+        will create a self.interacting_id if one does not exist already
+            self.interacting_id = id of the pointable that was already interacting
 
 
     '''
@@ -388,6 +389,33 @@ def _prefer_older_pointable(target):
         self = args[0]
         frame = args[1]
         #look for pointable list
+        if 'pointable_list' in kwargs.keys() and kwargs['pointable_list']:
+            #if there is a previuos detected pointable
+            for pointable in kwargs['pointable_list']:
+                #check the pointable id
+                try:
+                    if pointable['object'].id == self.interacting_id:
+                        #overwrite the pointable list to only have our chosen poitnable 
+                        kwargs['pointable_list'] = [pointable]
+                        did_not_find_flag = False
+                        #as soon as we find a valid poitnable we stop
+                        break
+                    else:
+                        #we move on to the next element
+                        did_not_find_flag = True
+                        continue
+                except AttributeError:
+                    #there was not a self.interacting_id
+                    did_not_find_flag = True
+                    #exit from the loop to the clean up clause
+                    break
+            if did_not_find_flag:
+                #take the first pointable off the stack and make it the new interating_id
+                pointable = kwargs['pointable_list'][0]
+                self.interacting_id = pointable['object'].id
+                #overwrite the pointable list to only include our chosen poitnable
+                kwargs['pointable_list'] = [pointable]
+        target.send((args,kwargs))
 
 @coroutine
 def _add_tools_to_pointable_list(target):
@@ -435,6 +463,7 @@ def _add_hands_to_pointable_list(target):
         {'object':pointable,'type':pointable_TYPE}
     '''
     while True:
+        args,kwargs = (yield)
         frame = args[1]
         if not 'pointable_list' in kwargs.keys():
             #if the list does not already exist then we add it in
@@ -445,7 +474,7 @@ def _add_hands_to_pointable_list(target):
         else:
             for hand in frame.hands:
                 #collect the variables into one list to append
-                kwargs['pointable_list'].append({'object':hand,'type':'HAND'])
+                kwargs['pointable_list'].append({'object':hand,'type':'HAND'})
         target.send((args,kwargs))   
 
 @coroutine
@@ -492,10 +521,10 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
     #rather than passing in
     if 'x' == axis.lower():
         axis_index = 0
-        side_choice = lambda s: getattr(s,'depth')
+        side_choice = lambda s: getattr(s,'width')
     elif 'y' == axis.lower():
         axis_index = 1
-        side_choice = lambda s: getattr(s,'width')
+        side_choice = lambda s: getattr(s,'depth')
     elif 'z' == axis.lower():
         axis_index = 2
         side_choice = lambda s: getattr(s,'height')
@@ -507,7 +536,8 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
         self = args[0]
         frame = args[1]
         #check that there is a position in stream with extra check to make sure it is non empty
-        if 'position' in kwargs['position'] and kwargs['position']:
+        if kwargs['pointable_list'] and 'position' in kwargs['pointable_list'][0].keys():
+            position = kwargs['pointable_list'][0]['position']
             try:
                 gain = getattr(self,'gain')
             except AttributeError:
@@ -519,7 +549,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
             #calculate the size of the partition but cast to float
             partition = side/float(resolution)
             #calculate the output by the 
-            output = (position[axis_index]*gain/partition)+side/2.0
+            output = int((position[axis_index]+(side/2.0))/partition)
             #clamp the output to the size of the interaction box
             if output > side:
                 output = side

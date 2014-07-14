@@ -37,22 +37,20 @@ class KeyBinding(object):
         #package the instance and the callback
         self.button_1 = CubicButton(CENTER=(0,200,0),callback = self.nuke_universe)
 
-
-        '''
         #define the callback
         self.bar_func = self._bar_func()
         #package the instance and the callback
-        self.slider_1 = [Slider(CENTER=(-150,300,0),WIDTH = 200, HEIGHT = 200,DEPTH = 400),self._bar_func]
+        self.slider_1 = Slider(CENTER=(-150,300,0),WIDTH = 200, HEIGHT = 200,DEPTH = 400,callback = self.bar_func)
         #define the callback
         self.adjust_gain = self._adjust_gain()
         #package the instance and the callback
-        self.slider_2 = [Slider(CENTER=(150,300,0),WIDTH = 200, HEIGHT = 200,DEPTH = 400), self._adjust_gain]
-        '''
+        self.slider_2 = Slider(CENTER=(150,300,0),WIDTH = 200, HEIGHT = 200,DEPTH = 400,callback = self.adjust_gain)
+
 
 
         '''Make the list of all UI elements '''
-        self.UE_list = [self.button_1]       
-    
+        self.UE_list = [self.button_1,self.slider_1,self.slider_2]       
+        #self.UE_list = [self.slider_1]
                                
     '''BUTTON CALLBACKS ************************************************'''     
                           
@@ -68,23 +66,28 @@ class KeyBinding(object):
                 print '*'*25
         except GeneratorExit:
             print 'button_nuke_universe closing!'
-
-'''                
+             
     @coroutine    
     def _bar_func(self):
-        while True:
-            slide = ['_']*20
-            value = self.bar[0].slider_value
-            slide.insert(value,'X')
-            print "".join(slide),"gain:" ,self.bar[0].gain
+        try:
+            while True:
+                args,kwargs = (yield)
+                slide = ['_']*20
+                value = self.slider_1.clamped_y
+                slide.insert(value,'X')
+                print "".join(slide),"gain:", self.slider_1.gain
+        except GeneratorExit:
+            print 'slider 1 closing'
     
     @coroutine    
     def _adjust_gain(self):
-        while True:
-            slide = ['-']*20
-            value = self.gain_slider[0].slider_value
-            slide.insert(value,'X')
-            self.bar[0].gain = value/10.0
-            print "".join(slide),'value:', value
+        try:
+            while True:
+                args,kwargs = (yield)
+                slide = ['-']*20
+                value = self.slider_2.clamped_y
+                slide.insert(value,'X')
+                print "".join(slide),'value:', value
+        except GeneratorExit:
+            print'slider_2 closing'
 
-'''

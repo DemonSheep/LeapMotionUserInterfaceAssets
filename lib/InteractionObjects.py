@@ -209,11 +209,17 @@ class Slider(InteractionSpace):
         valid_path = self.is_valid_path(update)
         self.data_listener = self._data_listener(valid_path)                
                
-    def is_valid(self,target):
-        end =  (target)
+    def is_valid_path(self,target):
+        end = Coroutines._enforce_hand_sphere_radius(target,-50)
+        pipeA = Coroutines._prefer_older_pointable(end)
+        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        pipeC = Coroutines._hand_palm_position(pipeB)
+        beginning = Coroutines._add_hands_to_pointable_list(pipeC)
+        return beginning
                         
     def updating_path(self,callback):
-        pass
+        beginning = Coroutines._simple_one_axis_position_from_position(callback,'y',20)
+        return beginning
      
 class PlanarPosition(InteractionSpace):
     '''Create a Planar Position sensor that producess a linear output with position in a plane
