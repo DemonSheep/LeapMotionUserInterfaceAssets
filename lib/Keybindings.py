@@ -7,7 +7,7 @@ Copyright (c) 2014
 Released under MIT License
 """
 
-from InteractionObjects import CubicButton,Slider
+from InteractionObjects import CubicButton,Slider,PlanarPosition
 from Coroutines import coroutine
 
 class KeyBinding(object):
@@ -46,11 +46,13 @@ class KeyBinding(object):
         #package the instance and the callback
         self.slider_2 = Slider(CENTER=(150,300,0),WIDTH = 200, HEIGHT = 200,DEPTH = 400,callback = self.adjust_gain)
 
-
+        self.planar_slide = self._planar_slide()
+        #package the instance and the callback
+        self.planar_1 = PlanarPosition(CENTER=(0,300,0),WIDTH = 400, HEIGHT = 200,DEPTH = 400,callback = self.planar_slide)
 
         '''Make the list of all UI elements '''
-        self.UE_list = [self.button_1,self.slider_1,self.slider_2]       
-        #self.UE_list = [self.slider_1]
+        #self.UE_list = [self.button_1,self.slider_1,self.slider_2]       
+        self.UE_list = [self.planar_1]
                                
     '''BUTTON CALLBACKS ************************************************'''     
                           
@@ -90,4 +92,41 @@ class KeyBinding(object):
                 print "".join(slide),'value:', value
         except GeneratorExit:
             print'slider_2 closing'
+
+    @coroutine    
+    def _planar_slide(self):
+        from copy import deepcopy
+        length = 30
+        height = 20
+        board = []
+        for i in range(height):
+            if i == 0 or i == height-1:
+                board.append(["#"] * length)
+            else:
+                temp = ["#","#"]
+                for i in range(length-2):
+                    temp.insert(1," ")
+                board.append(temp)
+        def print_board(board):
+            for row in board:
+                print "".join(row)
+
+
+
+        def player_position(board,x,y):
+            board[y][x] = 'X'
+            return board
+        try:
+            while True:
+                args,kwargs = (yield)
+                fresh_board = deepcopy(board)
+                x = self.planar_1.clamped_x
+                y = self.planar_1.clamped_y
+                y = height -y
+                print 'X:',x,"Y:",y
+                fresh_board = player_position(fresh_board,x,y)
+                print_board(fresh_board)
+        except GeneratorExit:
+            print'slider_2 closing'
+
 

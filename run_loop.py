@@ -24,7 +24,7 @@ from lib.Coroutines import *
                 
 '''VISUALIZE #################################################################'''
 length = 80
-height = 19
+height = 20
 board = []
 for i in range(height):
     if i == 0 or i == height-1:
@@ -40,8 +40,9 @@ def print_board():
 
 
 
-def player_position(x,y):
-    pass
+def player_position(board,x,y):
+    board[x][y] = 'X'
+    return board
 
 
 ''' TESTS ####################################################################'''

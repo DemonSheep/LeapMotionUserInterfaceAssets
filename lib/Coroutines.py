@@ -485,6 +485,7 @@ def _pass_arguments(target):
     while True:
         args,kwargs = (yield)
         #print 'Just passing through'
+        print kwargs
         target.send((args,kwargs))
 
 @coroutine

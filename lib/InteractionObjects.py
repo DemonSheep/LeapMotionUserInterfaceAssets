@@ -156,7 +156,7 @@ class CubicButton(InteractionSpace):
         self.button_buffer = Buffer()    
         ###########################################
         if callback is None:
-            callback = _sink()
+            callback = Coroutines._sink()
         '''Setup the data path'''
         update = self.updating_path(callback)
         valid_path = self.is_valid_path(update)
@@ -203,7 +203,7 @@ class Slider(InteractionSpace):
             self.slider_direction = 'y'
 
         if callback is None:
-            callback = _sink()
+            callback = Coroutines._sink()
         '''Setup the data path'''
         update = self.updating_path(callback)
         valid_path = self.is_valid_path(update)
@@ -218,7 +218,7 @@ class Slider(InteractionSpace):
         return beginning
                         
     def updating_path(self,callback):
-        beginning = Coroutines._simple_one_axis_position_from_position(callback,'y',20)
+        beginning = Coroutines._simple_one_axis_position_from_position(callback,self.slider_direction,20)
         return beginning
      
 class PlanarPosition(InteractionSpace):
@@ -242,26 +242,34 @@ class PlanarPosition(InteractionSpace):
         from the Leap will be converted into local reference frame coordinates.
         '''
 
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0)):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
-        pass
+        self.normal_direction = NORMAL_DIRECTION
 
+        if callback is None:
+            callback = Coroutines._sink()
+        '''Setup the data path'''
+        update = self.updating_path(callback)
+        valid_path = self.is_valid_path(update)
+        self.data_listener = self._data_listener(valid_path) 
+
+
+    def is_valid_path(self,target):
+        end = Coroutines._enforce_hand_sphere_radius(target,-50)
+        pipeA = Coroutines._prefer_older_pointable(end)
+        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        pipeC = Coroutines._hand_palm_position(pipeB)
+        beginning = Coroutines._add_hands_to_pointable_list(pipeC)
+        return beginning
+                        
+    def updating_path(self,callback):
+        end = Coroutines._simple_one_axis_position_from_position(callback,'x',30)
+        beginning = Coroutines._simple_one_axis_position_from_position(end,'y',20)
+        #start = Coroutines._pass_arguments(beginning)
+
+        return beginning
     
-    def is_valid(self,frame_data):
-        #in this version of is_valid
-        for hand in frame_data.hands:
-            position = hand.palm_position
-            if super(PlanarPosition,self).is_valid(position):
-                #!!SIDE EFFECTS!! update state
-                self.frame_data = frame_data
-                self.buff.enqueue(frame_data)
-                # this causes the software to prefer the last hand in the queue
-                #POORLY DEFINED BEHAVIOR: FIX
-                self.hand_id = hand.id
-                return True
-            else:
-                pass
-        return False
+
 
 
 
