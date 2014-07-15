@@ -151,7 +151,7 @@ class CubicButton(InteractionSpace):
         
     '''
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 100,PRESS_DIRECTION = (0,0,-1),callback = None):
-        super(CubicButton,self).__init__(CENTER = CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH )
+        super(CubicButton,self).__init__(CENTER = CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = PRESS_DIRECTION)
         self.press_direction = PRESS_DIRECTION
         self.button_buffer = Buffer()    
         ###########################################
@@ -190,7 +190,7 @@ class Slider(InteractionSpace):
         enforce_slider_normal = [True]  
     '''
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
-        super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH )
+        super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION )
         self.normal_direction = NORMAL_DIRECTION
         self.buff = Buffer()
         self.gain = 1
@@ -243,7 +243,7 @@ class PlanarPosition(InteractionSpace):
         '''
 
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
-        super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
+        super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION)
         self.normal_direction = NORMAL_DIRECTION
 
         if callback is None:
@@ -270,9 +270,9 @@ class PlanarPosition(InteractionSpace):
         return beginning
     
 
-
+foo = 7
 class ThreeDimensionPosition(InteractionSpace):
-    '''Create a Planar Position sensor that producess a linear output with position in a plane
+    '''Create a 3D Position sensor that producess a linear output with position in a plane
     
     Attributes:
     ==================
@@ -286,15 +286,17 @@ class ThreeDimensionPosition(InteractionSpace):
 
     Behaviour:
     ==================
-        The Planar object has two outputs, an x and y component of measured 
+        The ThreeDimensionPosition object has three outputs, an x, y, and z component of measured 
         movement in the ThreeDimensionPosition object's own reference frame. The  
         reference frame is determined from the normal vector. The raw input 
         from the Leap will be converted into local reference frame coordinates.
         '''
 
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
-        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH)
+        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
         self.normal_direction = NORMAL_DIRECTION
+        print self.local_basis
+        
 
         if callback is None:
             callback = Coroutines._sink()

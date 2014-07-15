@@ -52,7 +52,7 @@ class KeyBinding(object):
 
         self.three_dimension = self._three_dimension()
         #package the instance and the callback
-        self.threeD_1 = ThreeDimensionPosition(CENTER=(0,300,0),WIDTH = 400, HEIGHT = 200,DEPTH = 400,callback = self.three_dimension)        
+        self.threeD_1 = ThreeDimensionPosition(CENTER=(0,300,0),WIDTH = 400, HEIGHT = 200,DEPTH = 400,NORMAL_DIRECTION = (0,1,0), callback = self.three_dimension)        
 
         '''Make the list of all UI elements '''
         #self.UE_list = [self.button_1,self.slider_1,self.slider_2]       

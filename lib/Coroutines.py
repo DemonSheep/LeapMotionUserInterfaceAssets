@@ -553,13 +553,14 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
             output = int((position[axis_index]+(side/2.0))/partition)
             #clamp the output to the size of the interaction box
             if output > side:
-                output = side
-            elif output < 0:
-                output = 0
+                output = side/partition -1 #this is hacky result of printing visualization
+            elif output < 1:
+                output = 1 #this is hacky result of printing visualization
             else:
                 pass
             #take care of missing attribute and set output
             setattr(self,'clamped_'+axis.lower(),output)
+            print 'clamped_'+axis.lower(),output
 
 
         else:
@@ -600,5 +601,20 @@ def _enforce_palm_normal(target,allowable_angle):
 
         target.send((args,kwargs))
 
+@coroutine
+def _look_for_keyTap_gesture(target,controller):
+    #first enable the key tap gesture
+    controller.enable_gesture(Leap.Gesture.TYPE_KEY_TAP )
+    #then set  personal configs
+    '''These are the defaults, uncomment to set specific
+    controller.config.set("Gesture.KeyTap.MinDownVelocity", 50)
+    controller.config.set("Gesture.KeyTap.HistorySeconds", 0.1)
+    controller.config.set("Gesture.KeyTap.MinDistance",3.0)
+    controller.config.save()
+    '''
+
+    #enter the loop
+    while True:
+        args,kwargs = (yield)
 
         
