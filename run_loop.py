@@ -24,7 +24,7 @@ from lib.Coroutines import *
                 
 '''VISUALIZE #################################################################'''
 length = 80
-height = 19
+height = 20
 board = []
 for i in range(height):
     if i == 0 or i == height-1:
@@ -40,8 +40,9 @@ def print_board():
 
 
 
-def player_position(x,y):
-    pass
+def player_position(board,x,y):
+    board[x][y] = 'X'
+    return board
 
 
 ''' TESTS ####################################################################'''
@@ -90,18 +91,13 @@ def key_bind_test():
     
 def slider_run_test():
     keybind = KeyBinding()
-    keybind.bar[0].gain = 2
-    keybind.gain_slider[0].enforce_slider_normal = False
-    
-    #loop
-    for i in range(6000):
-        #this is all changing
-        # frame = get_data()
-        # list_of_elements = Inter.poll_interface_elements(keybind.UE_list,frame)
-        # Inter.run_interaction_detection(list_of_elements,frame)
-        print '**********************************'
-
-        time.sleep(.01)
+    targets = []
+    for thing in keybind.UE_list:
+        targets.append(thing.data_listener)
+    for i in range(400):
+        frame_broadcaster(targets) 
+        time.sleep(.05)
+        print i
 
     
 def button_run_test():
@@ -117,6 +113,6 @@ def button_run_test():
     
 ''' RUN TESTS HERE ############################################################'''
 
-#slider_run_test()
+slider_run_test()
 
-button_run_test()
+#button_run_test()

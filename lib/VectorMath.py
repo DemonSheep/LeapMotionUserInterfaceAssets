@@ -136,7 +136,7 @@ def generate_basis(n): # where n is normal vector of the body frame
     basis = [[1,0,0],[0,1,0],[0,0,1]]
     
     cross, angle = cross_product(k, n)
-    #the existance of axis z prime will be the flag to control which computation we do
+    #the existance of axis k prime will be the flag to control which computation we do
     k_prime = None
     if abs(angle) < 0.2:
         #create another rotation quaternion

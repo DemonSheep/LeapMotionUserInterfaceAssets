@@ -9,7 +9,7 @@ to specific gestures can take a while.
 This project provides a library of virtual controls such as:
   - [x] Buttons
   - [x] Sliders
-  - [ ] 2D and 3D position control (like a mouse)
+  - [x] 2D and 3D position control (like a mouse)
   - [ ] 2D and 3D orientation control (like a trackball)
   
 You can also write your own custom interaction object from template and easily link it with rest! 
