@@ -288,10 +288,10 @@ class ThreeDimensionPosition(InteractionSpace):
         from the Leap will be converted into local reference frame coordinates.
         '''
 
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'rectangle'):
         super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
         
-        
+        self.shape = shape
 
         if callback is None:
             callback = Coroutines._sink()
@@ -303,7 +303,14 @@ class ThreeDimensionPosition(InteractionSpace):
     def is_valid_path(self,target):
         end = Coroutines._enforce_hand_sphere_radius(target,-50)
         pipeA = Coroutines._prefer_older_pointable(end)
-        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        #setup if stements by frequecy for speed
+        #small startup performance hit is better than whole new class that changes one line
+        if self.shape.lower() == 'rectangle': 
+            pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        elif self.shape.lower() == 'ellipsoid':
+            pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
+        elif self.shape.lower() == 'cylinder':
+            pipeB = Coroutines._check_bounding_cylinder_all_pointable(pipeA)
         pipeC = Coroutines._hand_palm_position(pipeB)
         beginning = Coroutines._add_hands_to_pointable_list(pipeC)
         return beginning
@@ -315,59 +322,3 @@ class ThreeDimensionPosition(InteractionSpace):
         #start = Coroutines._pass_arguments(beginning)
 
         return beginning
-
-
-class EllipsoidThreeDimensionPosition(InteractionSpace):
-    '''Create a 3D Position sensor that producess a linear output with position in a 3-space
-    
-    Attributes:
-    ==================
-        center = (x,y,z) center of ellipsoid is  equidistant from all sides
-        width  = width of the ellipsoid, measured along x-axis
-        depth = depth of the ellipsoid, measured along the y-axis
-        height  = height of the ellipsoid, measured along the z-axis
-        normal_direction = unit vector that the local z will be aligned with
-        enforce_planar_normal = Boolean to determine whether hand orientation is 
-            used to determine sucessful interaction.
-
-    Behaviour:
-    ==================
-        The EllipsoidThreeDimensionPosition object has three outputs, an x, y, and z component of measured 
-        movement in the EllipsoidThreeDimensionPosition object's own reference frame. The  
-        reference frame is determined from the normal vector. The raw input 
-        from the Leap will be converted into local reference frame coordinates.
-        '''
-
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
-        super(EllipsoidThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
-        self.center = CENTER 
-        self.local_basis = VectorMath.generate_basis(self.normal)
-        self.normal_direction = NORMAL_DIRECTION
-        print self.local_basis
-        
-
-        if callback is None:
-            callback = Coroutines._sink()
-        '''Setup the data path'''
-        update = self.updating_path(callback)
-        valid_path = self.is_valid_path(update)
-        self.data_listener = self._data_listener(valid_path) 
-
-    def is_valid_path(self,target):
-        end = Coroutines._enforce_hand_sphere_radius(target,-50)
-        pipeA = Coroutines._prefer_older_pointable(end)
-        #this is the only line changed
-        pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
-        pipeC = Coroutines._hand_palm_position(pipeB)
-        beginning = Coroutines._add_hands_to_pointable_list(pipeC)
-        return beginning
-                        
-    def updating_path(self,callback):
-        end = Coroutines._simple_one_axis_position_from_position(callback,'x',30)
-        pipeA = Coroutines._simple_one_axis_position_from_position(end,'y',20)
-        beginning = Coroutines._simple_one_axis_position_from_position(pipeA,'z',20)
-        #start = Coroutines._pass_arguments(beginning)
-
-        return beginning
-
-
