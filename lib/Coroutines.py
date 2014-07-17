@@ -360,6 +360,136 @@ def _check_bounding_box_all_pointable(target):
         target.send((args,kwargs))
 
 @coroutine
+def _check_bounding_cylinder_all_pointable(target):
+    '''Determine if a position given in Leap reference frame is inside 
+    Interaction volume that is a cylinder with symetric axis along the local z
+
+    MODIFIES STREAM
+
+    Parameters:
+    =============
+        pointable_list = list of pointable objects to check against bounding box
+            [{'object':pointable_id_1,'type':pointable_TYPE,'position':(x1,y1,z1)},...]
+
+    Requires:
+    =============
+        must be passed a class instance that has following properties
+            tuple self.center = (x,y,z)
+            int self.width
+            int self.depth
+            int self.height
+            function self.convert_to_local_coordinates()
+
+    '''
+    #convert Leap frame to local frame
+    while True:
+        args,kwargs = (yield)
+        self = args[0]
+        frame = args[1]
+        #make a temporary list to store valid pointables
+        valid_pointable_list = []
+        #get the position from stream
+        try:
+            pointable_list = kwargs['pointable_list']
+        except KeyError:
+            # we go to outer loop because there is nothing to process
+            continue
+        else:
+            #clean up stream
+            #del kwargs['pointable_list'] NOT CLEANING UP STREAM FOR NOW
+            pass
+        for local_pointable in pointable_list:
+            # look in the second index of each pointable for the preprocessed position
+            try:
+                position = local_pointable['position']
+            except KeyError:
+                continue
+            #HOTFIX because Leap.Vector does not support iteration
+            temp = [position[0],position[1],position[2]]
+            #translate the position to local origin
+            local_position = self.convert_to_local_coordinates(temp,self.local_basis)
+            # check the bounds of the volume with our local_position
+            if (-self.height/2) <= local_position[2] <= (self.height/2): #do easy check first
+                if ((local_position[0]/self.width)**2 + (local_position[1]/self.depth)**2) < self.radius:
+                    #the check passes so we append the pointable to the valid list
+                    #pointable is a dictionary
+                    #overwrite the position to local coordinates so other parts can use that
+                    local_pointable['position'] = local_position
+                    valid_pointable_list.append(local_pointable)
+            #place a new field with the 
+        kwargs['pointable_list'] = valid_pointable_list
+        target.send((args,kwargs))
+
+@coroutine
+def _check_bounding_ellipsoid_all_pointable(target):
+    '''Determine if a position given in Leap reference frame is inside 
+    Interaction volume that is an axis aligned ellipsoid. 
+    Equation of ellipsoid:
+        (x/(width/2)^2 + (y/(depth/2))^2 + (z/(height/2))^2 = 1
+
+    To use a sphere simply set each of the axis constants to be equal.
+        width = height = depth
+
+    MODIFIES STREAM
+
+    Parameters:
+    =============
+        pointable_list = list of pointable objects to check against bounding box
+            [{'object':pointable_id_1,'type':pointable_TYPE,'position':(x1,y1,z1)},...]
+
+    Requires:
+    =============
+        must be passed a class instance that has following properties
+            tuple self.center = (x,y,z)
+            int self.width
+            int self.depth
+            int self.height
+            function self.convert_to_local_coordinates()
+
+    '''
+    #convert Leap frame to local frame
+    while True:
+        args,kwargs = (yield)
+        self = args[0]
+        frame = args[1]
+        #make a temporary list to store valid pointables
+        valid_pointable_list = []
+        #get the position from stream
+        try:
+            pointable_list = kwargs['pointable_list']
+        except KeyError:
+            # we go to outer loop because there is nothing to process
+            continue
+        else:
+            #clean up stream
+            #del kwargs['pointable_list'] NOT CLEANING UP STREAM FOR NOW
+            pass
+        for local_pointable in pointable_list:
+            # look in the second index of each pointable for the preprocessed position
+            try:
+                position = local_pointable['position']
+            except KeyError:
+                continue
+            #HOTFIX because Leap.Vector does not support iteration
+            temp = [position[0],position[1],position[2]]
+            #translate the position to local origin
+            local_position = self.convert_to_local_coordinates(temp,self.local_basis)
+            # check the bounds of the volume with our local_position
+            #for brevity we use letters for the constants
+            a = self.width/2
+            b = self.depth/2
+            c = self.height/2
+            if (local_position[0]/a)**2 + (local_position[1]/b)**2) + (local_position[2]/c)**2 < 1:
+                #the check passes so we append the pointable to the valid list
+                #pointable is a dictionary
+                #overwrite the position to local coordinates so other parts can use that
+                local_pointable['position'] = local_position
+                valid_pointable_list.append(local_pointable)
+            #place a new field with the 
+        kwargs['pointable_list'] = valid_pointable_list
+        target.send((args,kwargs))
+
+@coroutine
 def _prefer_older_pointable(target):
     '''Check the class instace if there is a pointable that is already interacting
 
@@ -398,7 +528,7 @@ def _prefer_older_pointable(target):
                         #overwrite the pointable list to only have our chosen poitnable 
                         kwargs['pointable_list'] = [pointable]
                         did_not_find_flag = False
-                        #as soon as we find a valid poitnable we stop
+                        #as soon as we find a valid pointable we stop
                         break
                     else:
                         #we move on to the next element
@@ -568,6 +698,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
             continue
         #this was an state update but we pass the stream on none the less
         target.send((args,kwargs))
+
 
 @coroutine
 def _enforce_palm_normal(target,allowable_angle):

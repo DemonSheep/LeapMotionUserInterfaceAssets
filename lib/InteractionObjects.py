@@ -111,7 +111,7 @@ class InteractionSpace(object):
         
         '''These values are in Leap coordinates'''
         self.center = CENTER 
-        self.normal = NORMAL # keep this as a tuple, this should not be changing
+        self.normal_direction = NORMAL # keep this as a tuple, this should not be changing
 
         '''These values are in local coordinates'''
         self.width = WIDTH
@@ -145,8 +145,8 @@ class CubicButton(InteractionSpace):
     Attributes:
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
-        height = height of the button, measured along the y-axis
-        depth  = depth of the button, measured along the z-axis
+        depth = depth of the button, measured along the y-axis
+        height  = height of the button, measured along the z-axis
         press_direction = unit vector normal to press plane
         
     '''
@@ -184,14 +184,13 @@ class Slider(InteractionSpace):
     Attributes:
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
-        height = height of the button, measured along the y-axis
-        depth  = depth of the button, measured along the z-axis
+        depth = depth of the button, measured along the y-axis
+        height  = height of the button, measured along the z-axis
         normal_direction = unit vector normal to slider plane
         enforce_slider_normal = [True]  
     '''
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION )
-        self.normal_direction = NORMAL_DIRECTION
         self.buff = Buffer()
         self.gain = 1
         # figure out which direction the slider works in
@@ -228,8 +227,8 @@ class PlanarPosition(InteractionSpace):
     ==================
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
-        height = height of the button, measured along the y-axis
-        depth  = depth of the button, measured along the z-axis
+        depth = depth of the button, measured along the y-axis
+        height  = height of the button, measured along the z-axis
         normal_direction = unit vector normal to plane
         enforce_planar_normal = Boolean to determine whether hand orientation is 
             used to determine sucessful interaction.
@@ -244,7 +243,6 @@ class PlanarPosition(InteractionSpace):
 
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION)
-        self.normal_direction = NORMAL_DIRECTION
 
         if callback is None:
             callback = Coroutines._sink()
@@ -252,7 +250,6 @@ class PlanarPosition(InteractionSpace):
         update = self.updating_path(callback)
         valid_path = self.is_valid_path(update)
         self.data_listener = self._data_listener(valid_path) 
-
 
     def is_valid_path(self,target):
         end = Coroutines._enforce_hand_sphere_radius(target,-50)
@@ -270,7 +267,6 @@ class PlanarPosition(InteractionSpace):
         return beginning
     
 
-foo = 7
 class ThreeDimensionPosition(InteractionSpace):
     '''Create a 3D Position sensor that producess a linear output with position in a plane
     
@@ -294,6 +290,58 @@ class ThreeDimensionPosition(InteractionSpace):
 
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
+        
+        
+
+        if callback is None:
+            callback = Coroutines._sink()
+        '''Setup the data path'''
+        update = self.updating_path(callback)
+        valid_path = self.is_valid_path(update)
+        self.data_listener = self._data_listener(valid_path) 
+
+    def is_valid_path(self,target):
+        end = Coroutines._enforce_hand_sphere_radius(target,-50)
+        pipeA = Coroutines._prefer_older_pointable(end)
+        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        pipeC = Coroutines._hand_palm_position(pipeB)
+        beginning = Coroutines._add_hands_to_pointable_list(pipeC)
+        return beginning
+                        
+    def updating_path(self,callback):
+        end = Coroutines._simple_one_axis_position_from_position(callback,'x',30)
+        pipeA = Coroutines._simple_one_axis_position_from_position(end,'y',20)
+        beginning = Coroutines._simple_one_axis_position_from_position(pipeA,'z',20)
+        #start = Coroutines._pass_arguments(beginning)
+
+        return beginning
+
+
+class EllipsoidThreeDimensionPosition(InteractionSpace):
+    '''Create a 3D Position sensor that producess a linear output with position in a 3-space
+    
+    Attributes:
+    ==================
+        center = (x,y,z) center of ellipsoid is  equidistant from all sides
+        width  = width of the ellipsoid, measured along x-axis
+        depth = depth of the ellipsoid, measured along the y-axis
+        height  = height of the ellipsoid, measured along the z-axis
+        normal_direction = unit vector that the local z will be aligned with
+        enforce_planar_normal = Boolean to determine whether hand orientation is 
+            used to determine sucessful interaction.
+
+    Behaviour:
+    ==================
+        The EllipsoidThreeDimensionPosition object has three outputs, an x, y, and z component of measured 
+        movement in the EllipsoidThreeDimensionPosition object's own reference frame. The  
+        reference frame is determined from the normal vector. The raw input 
+        from the Leap will be converted into local reference frame coordinates.
+        '''
+
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
+        super(EllipsoidThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
+        self.center = CENTER 
+        self.local_basis = VectorMath.generate_basis(self.normal)
         self.normal_direction = NORMAL_DIRECTION
         print self.local_basis
         
@@ -305,11 +353,11 @@ class ThreeDimensionPosition(InteractionSpace):
         valid_path = self.is_valid_path(update)
         self.data_listener = self._data_listener(valid_path) 
 
-
     def is_valid_path(self,target):
         end = Coroutines._enforce_hand_sphere_radius(target,-50)
         pipeA = Coroutines._prefer_older_pointable(end)
-        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        #this is the only line changed
+        pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
         pipeC = Coroutines._hand_palm_position(pipeB)
         beginning = Coroutines._add_hands_to_pointable_list(pipeC)
         return beginning
