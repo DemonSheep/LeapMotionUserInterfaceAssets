@@ -118,7 +118,7 @@ class InteractionSpace(object):
         self.height = HEIGHT
         self.depth = DEPTH
         # when we initialize we set up local coordinates
-        self.local_basis = VectorMath.generate_basis(self.normal)
+        self.local_basis = VectorMath.generate_basis(self.normal_direction)
 
 
         '''These are values that have nothing to do with reference frame'''

@@ -479,7 +479,7 @@ def _check_bounding_ellipsoid_all_pointable(target):
             a = self.width/2
             b = self.depth/2
             c = self.height/2
-            if (local_position[0]/a)**2 + (local_position[1]/b)**2) + (local_position[2]/c)**2 < 1:
+            if (local_position[0]/a)**2 + (local_position[1]/b)**2 + (local_position[2]/c)**2 < 1:
                 #the check passes so we append the pointable to the valid list
                 #pointable is a dictionary
                 #overwrite the position to local coordinates so other parts can use that
@@ -699,7 +699,6 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
         #this was an state update but we pass the stream on none the less
         target.send((args,kwargs))
 
-
 @coroutine
 def _enforce_palm_normal(target,allowable_angle):
     '''Find valid hand pointable and make sure the palm normal is within specified angle
@@ -748,4 +747,35 @@ def _look_for_keyTap_gesture(target,controller):
     while True:
         args,kwargs = (yield)
 
-        
+
+@coroutine
+def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
+    '''Create a node that splits the stream to two child nodes
+
+    This is ment to be a general purpose coroutine node template that can be used
+    straight away for simple branching flow control.
+
+    EXTEND ME !! write your own for more intricate and nonlinear signal processing.
+
+    Parameters:
+    ==============
+        targetA = the first child node
+        targetB = the second child node
+        condition_A = boolean expression controlling sending stream to targetA. If true
+                      we send the stream on
+        condition_B = boolean expression controlling sending stream to targetB. If true
+                      we send the stream on.
+
+    Operation:
+    ============
+        The node will evaluate each condition in turn and if true send the stream to that 
+        fork. When control returns to the node after child processes run, the second
+        brach conditional will be evaluated. Each conditional will be evaluated every time
+        the coroutine is called so dynamic expressions are allowed
+
+    '''
+    #if conditons are functions they should already be called 
+    while True:
+        args,kwargs = (yield)
+        #this needs to be laziliy evaluated HOW?????
+        if condition_A
