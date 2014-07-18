@@ -35,21 +35,23 @@ You can also write your own custom interaction object from template and easily l
       class KeyBinding(object):
       
         def __init__(self):
-          // Each interaction Object is assined a name and optionally a callback function
-          self.some_button_name = [ CubicButton(**kargs), self.some_button_callback]
+          // Each interaction Object is assigned a name and optionally a callback function
+          self.some_button_callback = self._actual_callback_function()
+          self.some_button_name = [ CubicButton(**kargs,call_back = self.some_button_callback) ]
           ...
           
           // We have list of every Interaction Element so we can iterate through and poll them
           self.UE_list = [self.some_button_name,...]
           
-          
-        def some_button_callback(self):
+        //these are coroutines that receive stream data from Interaction Objects
+        @coroutine
+        def _actual_callback_function(self):
           
           do_something()
           do_something_else()
           ...
-        
-        def another_callback(self):
+        @coroutine
+        def _another_callback(self):
           
           MyApp.do_something()
           MyApp.foo = 'bar'
