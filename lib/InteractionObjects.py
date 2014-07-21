@@ -133,6 +133,7 @@ class InteractionSpace(object):
     @coroutine
     def _data_listener(self,target):
         while True:
+            #this is where the class instance gets injected
             frame = (yield)
             args = [self,frame]
             kwargs = {}

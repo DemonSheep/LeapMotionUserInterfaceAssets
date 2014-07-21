@@ -747,6 +747,20 @@ def _look_for_keyTap_gesture(target,controller):
     while True:
         args,kwargs = (yield)
 
+''' Make a unique token generator for nodes then create an instance'''
+
+class TokenGenerator:
+    def __init__():
+        self.token_names = [0]
+    #makes instances of it self to 
+    def get_token():
+        token = self.token_names[-1]+1
+        self.token_names.append(token)
+        return token
+
+#I know globals are bad please FIX
+tokenGenerator = TokenGenerator()
+
 
 @coroutine
 def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
@@ -774,8 +788,119 @@ def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
         the coroutine is called so dynamic expressions are allowed
 
     '''
-    #if conditons are functions they should already be called 
+    #THIS IS A BAD HACk
+    #not sure how to cleanly implement this or if we need two different versions of spliter node
+    #will cast all conditions to callable objects 
+    import types
+    if not isinstance(condition_A, (types.FunctionType, types.BuiltinFunctionType, types.MethodType, types.BuiltinMethodType, types.UnboundMethodType)):
+        condition_A = lambda : condition_A
+    if not isinstance(condition_B, (types.FunctionType, types.BuiltinFunctionType, types.MethodType, types.BuiltinMethodType, types.UnboundMethodType)):
+        condition_B = lambda : condition_B
+
+    #get a unique identifier for this node in terms of the execution of the program
+    token = tokenGenerator.get_token()
     while True:
         args,kwargs = (yield)
         #this needs to be laziliy evaluated HOW?????
-        if condition_A
+        if condition_A():
+            #add in the token to the stream
+            kwargs['id_token'] = token
+            targetA.send((args,kwargs))
+        #after control returns execution will return here
+        if condition_B():
+            kwargs['id_token'] = token
+            targetB.send((args,kwargs))
+        #that's it for now, go to next loop
+
+@coroutine
+def _simple_joiner_node(target,merge = False): #only has one output
+    #if merge is false then we will discard all data except frame data
+    #the self parameter will be set to None.
+
+
+    #set up a list to hold the token ids which we can use to detect odd behavior.
+    #each join node should only have two static parent nodes. No change over life of program. 
+    token_id_dict = {}
+
+    frame_stamp = None
+
+    #loop and wait for all nodes to check in.
+    while True:
+        argsT,kwargsT = (yield)
+        #get the token id
+        tokenT = kwargsT['id_token']
+        if tokenT not in token_id_dict:             
+            #check the length of the new list
+            if len(token_id_dict) >=2:
+                #there are more than two parent nodes
+                raise RuntimeError,'you have three or more parent nodes pointing to same joiner node'
+            else:
+                #there was no problem 
+                token_id_dict[tokenT] = [argsT,kwargsT]
+        else:
+            #token is from a valid parent
+            #ovewrite the previous data from that parent with new data
+            token_id_dict[tokenT] = [argsT,kwargsT]
+        #now that we have updated all the data
+        if len(token_id_dict) == 1:
+            #we do not have data to compare
+            continue
+        else:
+            #we know that there are only two parent nodes in the dict
+            parent_nodes = token_id_dict.keys()
+            A = parent_nodes[0]
+            B = parent_nodes[1]
+            #check if the frame ids are the same
+            #we want the dict[[key]][args][index 1 of args which is the frame].id
+            if token_id_dict[A][0][1].id == token_id_dict[B][0][1].id:
+                #both of the frame are the same
+                if not merge:
+                    #no merge so we strip all data
+                    target.send((None,token_id_dict[A][0][1]))
+                else:
+                    #check if the instances are the same
+                    if token_id_dict[A][0][0] is not token_id_dict[B][0][0]:
+                        #no merge so we strip all data
+                        target.send((None,token_id_dict[A][0][1]))
+                    else:
+                        #now we try to merge the dictionaries of keywords
+                        temp_kwargs = {}
+                        kwargsA = token_id_dict[A][1]
+                        kwargsB = token_id_dict[B][1]
+                        all_key_names = kwargsA.keys() + kwargsB.keys()
+                        #look for iteratables in kwargs
+                        for name in all_key_names:
+                            #check that name is in both
+                            if all_key_names.find(name) == 2:
+                                try:
+                                    #make sure both items of the same name is iteratiable
+                                    #we dont care which one trips if they are not the same
+                                    iteratorA = iter(kwargsA[name])
+                                    iteratorB = iter(kwargsB[name])
+                                except TypeError:
+                                    all_key_names.pop(index)
+                                    #if the info is in one but not the other, we merge
+                                    if name in kwargsB and (not name in kwargsA):
+                                        #we use kwargsA as our result and overwrite it as needed
+                                        kwargsA[name] = kwargsB[name]
+                                    elif kwargsA[name] != kwargsB[name]:
+                                        #they are not the same so we do not include them
+                                        kwargsA[name] = None
+                                    else:
+                                        #they hame the same value so we leaveit alone
+                                        continue
+                                else:
+                                    #we found both to iteratble so now we iterate
+                                    #this section deals specifically with pointable_list but any similar structured data will be handled
+                                    #we are looking at two lists of dictionaries and merging the dictionaries if one dictionary is in the other one
+                                    for item in kwargsA[name]:
+                                        if item
+                                    
+
+
+
+
+
+
+
+
