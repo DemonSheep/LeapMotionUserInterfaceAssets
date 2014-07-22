@@ -750,7 +750,7 @@ def _look_for_keyTap_gesture(target,controller):
 ''' Make a unique token generator for nodes then create an instance'''
 
 class TokenGenerator:
-    def __init__():
+    def __init__(self):
         self.token_names = [0]
     #makes instances of it self to 
     def get_token():
@@ -856,51 +856,100 @@ def _simple_joiner_node(target,merge = False): #only has one output
                 #both of the frame are the same
                 if not merge:
                     #no merge so we strip all data
-                    target.send((None,token_id_dict[A][0][1]))
+                    target.send(((None,token_id_dict[A][0][1]),{}))
                 else:
                     #check if the instances are the same
                     if token_id_dict[A][0][0] is not token_id_dict[B][0][0]:
                         #no merge so we strip all data
-                        target.send((None,token_id_dict[A][0][1]))
+                        target.send(((None,token_id_dict[A][0][1]),{}))
                     else:
                         #now we try to merge the dictionaries of keywords
+                        args = (token_id_dict[A][0][0],token_id_dict[A][0][1])
+                        #we dont end up even using temp kwargs, probalby should FIX
                         temp_kwargs = {}
                         kwargsA = token_id_dict[A][1]
                         kwargsB = token_id_dict[B][1]
-                        all_key_names = kwargsA.keys() + kwargsB.keys()
+                        all_key_names = sorted(kwargsA.keys() + kwargsB.keys())
+                        '''print all_key_names'''
                         #look for iteratables in kwargs
-                        for name in all_key_names:
+                        temp_name = None
+                        for index,name in enumerate(all_key_names):
                             #check that name is in both
-                            if all_key_names.find(name) == 2:
+                            if name == temp_name:
+                                continue
+                            else:
+                                temp_name = name
+                            print name
+                            if (name in kwargsA) and (name in kwargsB):
                                 try:
                                     #make sure both items of the same name is iteratiable
                                     #we dont care which one trips if they are not the same
                                     iteratorA = iter(kwargsA[name])
                                     iteratorB = iter(kwargsB[name])
                                 except TypeError:
-                                    all_key_names.pop(index)
                                     #if the info is in one but not the other, we merge
                                     if name in kwargsB and (not name in kwargsA):
                                         #we use kwargsA as our result and overwrite it as needed
-                                        kwargsA[name] = kwargsB[name]
+                                        temp_kwargs[name] = kwargsB[name]
                                     elif kwargsA[name] != kwargsB[name]:
                                         #they are not the same so we do not include them
-                                        kwargsA[name] = None
+                                        temp_kwargs[name] = None
                                     else:
-                                        #they hame the same value so we leaveit alone
+                                        #they havee the same value so we get it from A
+                                        temp_kwargs[name] = kwargsA[name]
                                         continue
                                 else:
                                     #we found both to iteratble so now we iterate
                                     #this section deals specifically with pointable_list but any similar structured data will be handled
                                     #we are looking at two lists of dictionaries and merging the dictionaries if one dictionary is in the other one
-                                    for item in kwargsA[name]:
-                                        if item
+                                    temp_kwargs[name] = []
+                                    for index,element in enumerate(kwargsA[name]):
+                                        print 'item:',element
+                                        print '='*15
+                                        #loop over the iterables in second list 
+                                        for element2 in kwargsB[name]:
+                                            print 'item2;',element2
+                                            try:
+                                                #check for lists
+                                                if element in element2:
+                                                    #update item to have all the elements of item
+                                                    temp_kwargs[name].append(element2)
+                                                    break
+                                                else:
+                                                    #put the first on in since it is a superset
+                                                    temp_kwargs[name].append(element)
+                                            except TypeError:
+                                                #we probably hit a dictionary
+                                                try:
+                                                    if element2 == element:
+                                                        #if they are the same then add the first one arbitrarily
+                                                        print 'S:',temp_kwargs[name]
+                                                        temp_kwargs[name].append(element)
+                                                        print 'E:',temp_kwargs[name]
+                                                        break
+                                                    elif all(item in element2.items() for item in element.items()):
+                                                        temp_kwargs[name].append(element2)
+                                                        print element
+                                                        print 'dicitonary success'
+                                                        #we do not check the other way because if element is the superset then we dont car is elemnt2 is a subset
+                                                        print '\n'
+                                                        break
+                                                    else:
+                                                        temp_kwargs
+                                                except KeyError:
+                                                    #was not a dicitionary either
+                                                    raise RuntimeError,'did not have a list or dict, might want to modify this code to give the behavior you are looking for'
+
+                                                #if item2 is a subset of item then we do not have to update
+                                        #either we found an item that matches or there is no item that matches
+                                        #now we merge the items that had no matches in kwargsB
+                                        for item2 in kwargsB[name]:
+                                            if item2 not in kwargsA[name]:
+                                                temp_kwargs[name].append(item2)
+                        #send the data we updated
+                        target.send((args,temp_kwargs))
+            else:
+                #we did not have the same frame so skip to next loop
+                continue
+
                                     
-
-
-
-
-
-
-
-
