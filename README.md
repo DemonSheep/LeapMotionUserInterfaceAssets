@@ -46,7 +46,8 @@ You can also write your own custom interaction object from template and easily l
         //these are coroutines that receive stream data from Interaction Objects
         @coroutine
         def _actual_callback_function(self):
-          
+        
+          //YOUR CODE HERE
           do_something()
           do_something_else()
           ...
