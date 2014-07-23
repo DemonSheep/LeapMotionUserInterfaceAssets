@@ -5,13 +5,14 @@ Created on Tue Jul 9 8:00:00 2014
 Copyright (c) 2014 
 Released under MIT License
 """
-import Leap
+#import Leap
 import time
 import sys
 import VectorMath
-
+'''
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
+
 
 def get_data():
     # test to see if controller is on
@@ -24,6 +25,7 @@ def get_data():
     else:
         print "Sleeping, no connection\n"
         time.sleep(1)
+'''
         
 def coroutine(func):
     def wrapper(*args,**kwargs):
@@ -816,8 +818,44 @@ def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
 def _simple_joiner_node(target,merge = False): #only has one output
     #if merge is false then we will discard all data except frame data
     #the self parameter will be set to None.
+    from copy import deepcopy
+    def _merge_data_streams_according_to_very_specific_structure(structureA,structureB):
+        temp_struct = deepcopy(structureA)
+        #for this specific function we expect a list of dicitonaries
+        #we do not go deeper because this a special limited case
+        for item_in_A in temp_struct:
+            #loop through all the items in structureB
+            for index,item_in_B in enumerate(structureB):
+                #check if the item is a list
+                if item_in_A == item_in_B:
+                    #we don't update but we do remove the found object
+                    structureB.pop(index)
+                #now we check for subsets 
+                #we check if it is a dictionary
+                try:
+                    set_keys_A = set(item_in_A.keys())
+                    set_keys_B = set(item_in_B.keys())   
+                except AttributeError:
+                    #try a list
+                    try:
+                        if item_in_A in item_in_B:
+                            item_in_A = item_in_B
+                            #remove the matching item once we find it
+                            structureB.pop(index)
+                    except TypeError:
+                        #you get here and this function should no longer be used
+                        raise RuntimeError,'you need a different merge function'
+                    else:
+                        pass
 
+                else:
+                    set_difference = set_keys_B.difference(set_keys_A)
+                    if set_difference:
+                        for new_keys in set_difference:
+                            item_in_A[new_keys] = item_in_B[new_keys]
+                            structureB.pop(index)
 
+        return temp_struct
     #set up a list to hold the token ids which we can use to detect odd behavior.
     #each join node should only have two static parent nodes. No change over life of program. 
     token_id_dict = {}
@@ -825,7 +863,82 @@ def _simple_joiner_node(target,merge = False): #only has one output
     frame_stamp = None
 
     #loop and wait for all nodes to check in.
+    
+
+
     while True:
+        argsT,kwargsT = (yield)
+        #get the token id
+        tokenT = kwargsT['id_token']
+        if tokenT not in token_id_dict:             
+            #check the length of the new list
+            if len(token_id_dict) >=2:
+                #there are more than two parent nodes
+                raise RuntimeError,'you have three or more parent nodes pointing to same joiner node'
+            else:
+                #there are not two parent nodes so add this to token list 
+                token_id_dict[tokenT] = [argsT,kwargsT]           
+        if len(token_id_dict) == 1:
+            #we updated but there is only one token so
+            continue
+
+        #token is from a valid parent
+        #ovewrite the previous data from that parent with new data
+        token_id_dict[tokenT] = [argsT,kwargsT]
+        #now that we have updated all the data
+        #we know that there are only two parent nodes in the dict
+        parent_nodes = token_id_dict.keys()
+        A = parent_nodes[0]
+        B = parent_nodes[1]
+
+        args_A = token_id_dict[A][0]
+        kwargs_A = token_id_dict[A][1]
+        
+        args_B = token_id_dict[B][0]
+        kwargs_B = token_id_dict[B][1]
+
+
+        #check if the frame ids are the same
+        if args_A[1].id == args_B[1].id:
+            #when the instances are not the same then we do not merge
+            
+            if merge and (args_A[0] == args_B[0]):
+                temp_kwargs = {}
+                #we are merging and the frame is the same
+                all_key_names = set(kwargs_A.keys() + kwargs_B.keys())
+                #strip out the id token, we dont car about it
+                all_key_names.remove('id_token')
+                for key in all_key_names:
+                    if key == 'id_token':
+                        continue
+                    if key in kwargs_A:
+                        if key in kwargs_B:
+                            pass
+                            #calculate the merge of the sub data structure'''
+                            temp_kwargs[key] = _merge_data_streams_according_to_very_specific_structure(kwargs_A[key],kwargs_B[key])
+                        else:
+                            
+                            temp_kwargs[key] = kwargs_A[key]
+                    elif key in kwargs_B:
+                        temp_kwargs[key] = kwargs_B[key]
+                #send the data on
+                target.send((args_A,temp_kwargs))
+
+            elif args_A[0] != args_B[0] and not merge:
+                args_S = (None,argsA[1])
+                target.send((args_A, {}))
+            else:
+                #the instances are the same but we  dont merge data
+                target.send((args_A,{}))
+            #else:
+            #    pass
+
+
+
+
+
+'''
+while True:
         argsT,kwargsT = (yield)
         #get the token id
         tokenT = kwargsT['id_token']
@@ -870,7 +983,9 @@ def _simple_joiner_node(target,merge = False): #only has one output
                         kwargsA = token_id_dict[A][1]
                         kwargsB = token_id_dict[B][1]
                         all_key_names = sorted(kwargsA.keys() + kwargsB.keys())
-                        '''print all_key_names'''
+                        
+                        print all_key_names
+                        
                         #look for iteratables in kwargs
                         temp_name = None
                         for index,name in enumerate(all_key_names):
@@ -952,4 +1067,11 @@ def _simple_joiner_node(target,merge = False): #only has one output
                 #we did not have the same frame so skip to next loop
                 continue
 
-                                    
+
+'''
+
+
+
+
+
+  

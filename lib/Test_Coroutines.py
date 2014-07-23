@@ -43,6 +43,7 @@ class TestNodeJoining(unittest.TestCase):
         
 
     def test_without_merging(self):
+        #print 'running first test'
         target = self.joiner_node_no_merge
         args = ['self',fake_frame]
         kwargsA = self.data1
@@ -52,6 +53,7 @@ class TestNodeJoining(unittest.TestCase):
 
 
     def test_with_merging(self):
+        #print 'running second test'
         target = self.joiner_node_with_merge
         args = ['self',fake_frame]
         kwargsA = dict(self.data1)
