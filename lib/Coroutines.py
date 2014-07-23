@@ -5,11 +5,11 @@ Created on Tue Jul 9 8:00:00 2014
 Copyright (c) 2014 
 Released under MIT License
 """
-#import Leap
+import Leap
 import time
 import sys
 import VectorMath
-'''
+
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
 
@@ -25,7 +25,7 @@ def get_data():
     else:
         print "Sleeping, no connection\n"
         time.sleep(1)
-'''
+
         
 def coroutine(func):
     def wrapper(*args,**kwargs):
@@ -617,7 +617,7 @@ def _pass_arguments(target):
     while True:
         args,kwargs = (yield)
         #print 'Just passing through'
-        print kwargs
+        #print kwargs
         target.send((args,kwargs))
 
 @coroutine
@@ -755,7 +755,7 @@ class TokenGenerator:
     def __init__(self):
         self.token_names = [0]
     #makes instances of it self to 
-    def get_token():
+    def get_token(self):
         token = self.token_names[-1]+1
         self.token_names.append(token)
         return token
@@ -800,17 +800,19 @@ def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
         condition_B = lambda : condition_B
 
     #get a unique identifier for this node in terms of the execution of the program
-    token = tokenGenerator.get_token()
+    tokenA = tokenGenerator.get_token()
+    tokenB = tokenGenerator.get_token()
     while True:
         args,kwargs = (yield)
+
         #this needs to be laziliy evaluated HOW?????
         if condition_A():
             #add in the token to the stream
-            kwargs['id_token'] = token
+            kwargs['id_token'] = tokenA
             targetA.send((args,kwargs))
         #after control returns execution will return here
         if condition_B():
-            kwargs['id_token'] = token
+            kwargs['id_token'] = tokenB
             targetB.send((args,kwargs))
         #that's it for now, go to next loop
 
@@ -821,10 +823,13 @@ def _simple_joiner_node(target,merge = False): #only has one output
     from copy import deepcopy
     def _merge_data_streams_according_to_very_specific_structure(structureA,structureB):
         temp_struct = deepcopy(structureA)
+        structureB = deepcopy(structureB)
         #for this specific function we expect a list of dicitonaries
         #we do not go deeper because this a special limited case
-        for item_in_A in temp_struct:
+        not_in_A_but_in_B_list = []
+        for item_in_A in structureA:
             #loop through all the items in structureB
+
             for index,item_in_B in enumerate(structureB):
                 #check if the item is a list
                 if item_in_A == item_in_B:
@@ -842,6 +847,7 @@ def _simple_joiner_node(target,merge = False): #only has one output
                             item_in_A = item_in_B
                             #remove the matching item once we find it
                             structureB.pop(index)
+                            continue
                     except TypeError:
                         #you get here and this function should no longer be used
                         raise RuntimeError,'you need a different merge function'
@@ -851,24 +857,35 @@ def _simple_joiner_node(target,merge = False): #only has one output
                 else:
                     set_difference = set_keys_B.difference(set_keys_A)
                     if set_difference:
-                        for new_keys in set_difference:
-                            item_in_A[new_keys] = item_in_B[new_keys]
-                            structureB.pop(index)
-
+                        try:
+                            if item_in_A['object'] == item_in_B['object']:
+                                for new_keys in set_difference:
+                                    item_in_A[new_keys] = item_in_B[new_keys]
+                        except KeyError:
+                            #was not a pointable list
+                            pass
+                    elif not set_difference:
+                        #try and see if the values are different
+                        try:
+                            #specific case for the pointable_list
+                            if item_in_A['object'] != item_in_B['object']:
+                                temp_struct.append(item_in_B)
+                                #remove item_in_B once we have added it
+                                structureB.pop(index)
+                        except KeyError:
+                            #this is not a pointable_list
+                            pass
         return temp_struct
+
     #set up a list to hold the token ids which we can use to detect odd behavior.
     #each join node should only have two static parent nodes. No change over life of program. 
     token_id_dict = {}
-
-    frame_stamp = None
-
     #loop and wait for all nodes to check in.
-    
-
-
     while True:
         argsT,kwargsT = (yield)
         #get the token id
+        #argsT = deepcopy(argsT)
+        #kwargsT = deepcopy(kwargsT)
         tokenT = kwargsT['id_token']
         if tokenT not in token_id_dict:             
             #check the length of the new list
@@ -877,10 +894,20 @@ def _simple_joiner_node(target,merge = False): #only has one output
                 raise RuntimeError,'you have three or more parent nodes pointing to same joiner node'
             else:
                 #there are not two parent nodes so add this to token list 
-                token_id_dict[tokenT] = [argsT,kwargsT]           
+                token_id_dict[tokenT] = [argsT,kwargsT] 
+        elif tokenT in token_id_dict:
+            token_id_dict[tokenT] = [argsT,kwargsT]          
         if len(token_id_dict) == 1:
             #we updated but there is only one token so
             continue
+        else:
+            parent_nodes = token_id_dict.keys()
+            A = parent_nodes[0]
+            B = parent_nodes[1]
+            if not token_id_dict[A] or not token_id_dict[B]:
+                continue
+
+
 
         #token is from a valid parent
         #ovewrite the previous data from that parent with new data
@@ -897,181 +924,48 @@ def _simple_joiner_node(target,merge = False): #only has one output
         args_B = token_id_dict[B][0]
         kwargs_B = token_id_dict[B][1]
 
-
         #check if the frame ids are the same
         if args_A[1].id == args_B[1].id:
             #when the instances are not the same then we do not merge
-            
             if merge and (args_A[0] == args_B[0]):
+                if kwargs_A == kwargs_B:
+                    target.send((args_A,kwargs_A))
+                    token_id_dict[A] = []
+                    token_id_dict[B] = []
+                    continue
                 temp_kwargs = {}
                 #we are merging and the frame is the same
                 all_key_names = set(kwargs_A.keys() + kwargs_B.keys())
                 #strip out the id token, we dont car about it
                 all_key_names.remove('id_token')
+
                 for key in all_key_names:
-                    if key == 'id_token':
-                        continue
                     if key in kwargs_A:
                         if key in kwargs_B:
                             pass
                             #calculate the merge of the sub data structure'''
                             temp_kwargs[key] = _merge_data_streams_according_to_very_specific_structure(kwargs_A[key],kwargs_B[key])
                         else:
-                            
                             temp_kwargs[key] = kwargs_A[key]
                     elif key in kwargs_B:
                         temp_kwargs[key] = kwargs_B[key]
                 #send the data on
                 target.send((args_A,temp_kwargs))
-
+                token_id_dict[A] = []
+                token_id_dict[B] = []
             elif args_A[0] != args_B[0] and not merge:
                 args_S = (None,argsA[1])
                 target.send((args_A, {}))
+                token_id_dict[A] = []
+                token_id_dict[B] = []
             else:
                 #the instances are the same but we  dont merge data
                 target.send((args_A,{}))
+                token_id_dict[A] = []
+                token_id_dict[B] = []
             #else:
             #    pass
+        #wipe the packet data
 
 
-
-
-
-'''
-while True:
-        argsT,kwargsT = (yield)
-        #get the token id
-        tokenT = kwargsT['id_token']
-        if tokenT not in token_id_dict:             
-            #check the length of the new list
-            if len(token_id_dict) >=2:
-                #there are more than two parent nodes
-                raise RuntimeError,'you have three or more parent nodes pointing to same joiner node'
-            else:
-                #there was no problem 
-                token_id_dict[tokenT] = [argsT,kwargsT]
-        else:
-            #token is from a valid parent
-            #ovewrite the previous data from that parent with new data
-            token_id_dict[tokenT] = [argsT,kwargsT]
-        #now that we have updated all the data
-        if len(token_id_dict) == 1:
-            #we do not have data to compare
-            continue
-        else:
-            #we know that there are only two parent nodes in the dict
-            parent_nodes = token_id_dict.keys()
-            A = parent_nodes[0]
-            B = parent_nodes[1]
-            #check if the frame ids are the same
-            #we want the dict[[key]][args][index 1 of args which is the frame].id
-            if token_id_dict[A][0][1].id == token_id_dict[B][0][1].id:
-                #both of the frame are the same
-                if not merge:
-                    #no merge so we strip all data
-                    target.send(((None,token_id_dict[A][0][1]),{}))
-                else:
-                    #check if the instances are the same
-                    if token_id_dict[A][0][0] is not token_id_dict[B][0][0]:
-                        #no merge so we strip all data
-                        target.send(((None,token_id_dict[A][0][1]),{}))
-                    else:
-                        #now we try to merge the dictionaries of keywords
-                        args = (token_id_dict[A][0][0],token_id_dict[A][0][1])
-                        #we dont end up even using temp kwargs, probalby should FIX
-                        temp_kwargs = {}
-                        kwargsA = token_id_dict[A][1]
-                        kwargsB = token_id_dict[B][1]
-                        all_key_names = sorted(kwargsA.keys() + kwargsB.keys())
-                        
-                        print all_key_names
-                        
-                        #look for iteratables in kwargs
-                        temp_name = None
-                        for index,name in enumerate(all_key_names):
-                            #check that name is in both
-                            if name == temp_name:
-                                continue
-                            else:
-                                temp_name = name
-                            print name
-                            if (name in kwargsA) and (name in kwargsB):
-                                try:
-                                    #make sure both items of the same name is iteratiable
-                                    #we dont care which one trips if they are not the same
-                                    iteratorA = iter(kwargsA[name])
-                                    iteratorB = iter(kwargsB[name])
-                                except TypeError:
-                                    #if the info is in one but not the other, we merge
-                                    if name in kwargsB and (not name in kwargsA):
-                                        #we use kwargsA as our result and overwrite it as needed
-                                        temp_kwargs[name] = kwargsB[name]
-                                    elif kwargsA[name] != kwargsB[name]:
-                                        #they are not the same so we do not include them
-                                        temp_kwargs[name] = None
-                                    else:
-                                        #they havee the same value so we get it from A
-                                        temp_kwargs[name] = kwargsA[name]
-                                        continue
-                                else:
-                                    #we found both to iteratble so now we iterate
-                                    #this section deals specifically with pointable_list but any similar structured data will be handled
-                                    #we are looking at two lists of dictionaries and merging the dictionaries if one dictionary is in the other one
-                                    temp_kwargs[name] = []
-                                    for index,element in enumerate(kwargsA[name]):
-                                        print 'item:',element
-                                        print '='*15
-                                        #loop over the iterables in second list 
-                                        for element2 in kwargsB[name]:
-                                            print 'item2;',element2
-                                            try:
-                                                #check for lists
-                                                if element in element2:
-                                                    #update item to have all the elements of item
-                                                    temp_kwargs[name].append(element2)
-                                                    break
-                                                else:
-                                                    #put the first on in since it is a superset
-                                                    temp_kwargs[name].append(element)
-                                            except TypeError:
-                                                #we probably hit a dictionary
-                                                try:
-                                                    if element2 == element:
-                                                        #if they are the same then add the first one arbitrarily
-                                                        print 'S:',temp_kwargs[name]
-                                                        temp_kwargs[name].append(element)
-                                                        print 'E:',temp_kwargs[name]
-                                                        break
-                                                    elif all(item in element2.items() for item in element.items()):
-                                                        temp_kwargs[name].append(element2)
-                                                        print element
-                                                        print 'dicitonary success'
-                                                        #we do not check the other way because if element is the superset then we dont car is elemnt2 is a subset
-                                                        print '\n'
-                                                        break
-                                                    else:
-                                                        temp_kwargs
-                                                except KeyError:
-                                                    #was not a dicitionary either
-                                                    raise RuntimeError,'did not have a list or dict, might want to modify this code to give the behavior you are looking for'
-
-                                                #if item2 is a subset of item then we do not have to update
-                                        #either we found an item that matches or there is no item that matches
-                                        #now we merge the items that had no matches in kwargsB
-                                        for item2 in kwargsB[name]:
-                                            if item2 not in kwargsA[name]:
-                                                temp_kwargs[name].append(item2)
-                        #send the data we updated
-                        target.send((args,temp_kwargs))
-            else:
-                #we did not have the same frame so skip to next loop
-                continue
-
-
-'''
-
-
-
-
-
-  
+ 

@@ -1,6 +1,7 @@
 import unittest
 import Coroutines
 from Coroutines import coroutine
+from copy import deepcopy
 
 #data1
 class FakeFrame(object):
@@ -15,10 +16,10 @@ class TestNodeJoining(unittest.TestCase):
     def _sink_node(self):
         while True:
             args,kwargs = (yield)
-            print '*'*30
-            print 'ARGS:  ',args
-            print '#'*25
-            print 'KWARGS:  ',kwargs
+            #print '*'*30
+            #print 'ARGS:  ',args
+            #print '#'*25
+            #print 'KWARGS:  ',kwargs
 
 
     def setUp(self):
@@ -34,11 +35,23 @@ class TestNodeJoining(unittest.TestCase):
                     }
         self.data2 = {'pointable_list':[
                                         {'object':'handthing1','type':'HAND','position':(0,1,3)},
-                                        {'object':'fingerthing1','type':'FINGER','position':(6,7,8)}
+                                        {'object':'fingerthing1','type':'FINGER','position':(6,7,8),'foo':3},
+                                        {'object':'fingerthing2','type':'FINGER','position':(61,71,81)},
+                                        {'object':'fingerthing3','type':'FINGER','position':(50,50,50),'foo':5}
                                         ],
                     'random_data':'bigint1223434',
                     'id_token': 2
                     }
+        self.data3 = {'pointable_list':[
+                                        {'object':'handthing1','type':'HAND','position':(0,1,3)},
+                                        {'object':'fingerthing1','type':'FINGER','position':(9,7,8)}
+                                        ],
+                    'random_data':'bigint1229999',
+                    'id_token': 3
+                    }
+
+    def tearDown(self):
+        pass
 
         
 
@@ -51,7 +64,6 @@ class TestNodeJoining(unittest.TestCase):
         target.send((args,kwargsA))
         target.send((args,kwargsB))
 
-
     def test_with_merging(self):
         #print 'running second test'
         target = self.joiner_node_with_merge
@@ -61,11 +73,56 @@ class TestNodeJoining(unittest.TestCase):
         target.send((args,kwargsA))
         target.send((args,kwargsB))
 
-
     def test_to_many_parents(self):
-        pass
+        end = self._sink_node()
+        target = Coroutines._simple_joiner_node(end,True)
+        args = ['self',fake_frame]
+        kwargsA = dict(self.data1)
+        kwargsB = dict(self.data2)
+        kwargsC = dict(self.data3)
+        target.send((args,kwargsA))
+        target.send((args,kwargsB))
+        with self.assertRaises(RuntimeError):
+            target.send((args,kwargsC))
 
 
+class TestNodeNetWork(unittest.TestCase):
+
+    @coroutine
+    def _sink_node(self):
+        while True:
+            args,kwargs = (yield)
+            self.assertEquals(kwargs['pointable_list'],self.data1['pointable_list'])
+            #print '*'*30
+            #print 'ARGS:  ',args
+            #print '#'*25
+            #print 'KWARGS:  ',kwargs
+
+    def setUp(self):
+        sink = self._sink_node()
+        join = Coroutines._simple_joiner_node(sink,merge = True)
+
+        targetA = Coroutines._pass_arguments(join)
+        targetB = Coroutines._pass_arguments(join)
+        self.source = Coroutines._simple_switch_node(targetA,targetB,condition_A = True,condition_B = True)
+        self.data1 = {'pointable_list':[
+                                {'object':'handthing1','type':'HAND','position':(0,1,3)},
+                                {'object':'fingerthing1','type':'FINGER'},
+                                {'object':'fingerthing6','type':'FINGER','position':(62,71,81)}
+                                ],
+                    'id_token': 10
+                    }
+
+    def test_diamond_node_pattern(self):
+        args = ['selfZ',fake_frame]
+        kwargs = deepcopy(self.data1)
+        self.source.send((args,kwargs))
+
+        kwargs = deepcopy(self.data1)
+        self.source.send((args,kwargs))
+
+        kwargs = deepcopy(self.data1)
+        self.source.send((args,kwargs))
 
 
 if __name__ == '__main__':
