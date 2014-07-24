@@ -111,14 +111,14 @@ class InteractionSpace(object):
         
         '''These values are in Leap coordinates'''
         self.center = CENTER 
-        self.normal = NORMAL # keep this as a tuple, this should not be changing
+        self.normal_direction = NORMAL # keep this as a tuple, this should not be changing
 
         '''These values are in local coordinates'''
         self.width = WIDTH
         self.height = HEIGHT
         self.depth = DEPTH
         # when we initialize we set up local coordinates
-        self.local_basis = VectorMath.generate_basis(self.normal)
+        self.local_basis = VectorMath.generate_basis(self.normal_direction)
 
 
         '''These are values that have nothing to do with reference frame'''
@@ -133,6 +133,7 @@ class InteractionSpace(object):
     @coroutine
     def _data_listener(self,target):
         while True:
+            #this is where the class instance gets injected
             frame = (yield)
             args = [self,frame]
             kwargs = {}
@@ -145,8 +146,8 @@ class CubicButton(InteractionSpace):
     Attributes:
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
-        height = height of the button, measured along the y-axis
-        depth  = depth of the button, measured along the z-axis
+        depth = depth of the button, measured along the y-axis
+        height  = height of the button, measured along the z-axis
         press_direction = unit vector normal to press plane
         
     '''
@@ -184,14 +185,13 @@ class Slider(InteractionSpace):
     Attributes:
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
-        height = height of the button, measured along the y-axis
-        depth  = depth of the button, measured along the z-axis
+        depth = depth of the button, measured along the y-axis
+        height  = height of the button, measured along the z-axis
         normal_direction = unit vector normal to slider plane
         enforce_slider_normal = [True]  
     '''
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION )
-        self.normal_direction = NORMAL_DIRECTION
         self.buff = Buffer()
         self.gain = 1
         # figure out which direction the slider works in
@@ -228,8 +228,8 @@ class PlanarPosition(InteractionSpace):
     ==================
         center = (x,y,z) center of button is  equidistant from all sides
         width  = width of the button, measured along x-axis
-        height = height of the button, measured along the y-axis
-        depth  = depth of the button, measured along the z-axis
+        depth = depth of the button, measured along the y-axis
+        height  = height of the button, measured along the z-axis
         normal_direction = unit vector normal to plane
         enforce_planar_normal = Boolean to determine whether hand orientation is 
             used to determine sucessful interaction.
@@ -244,7 +244,6 @@ class PlanarPosition(InteractionSpace):
 
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(PlanarPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION)
-        self.normal_direction = NORMAL_DIRECTION
 
         if callback is None:
             callback = Coroutines._sink()
@@ -252,7 +251,6 @@ class PlanarPosition(InteractionSpace):
         update = self.updating_path(callback)
         valid_path = self.is_valid_path(update)
         self.data_listener = self._data_listener(valid_path) 
-
 
     def is_valid_path(self,target):
         end = Coroutines._enforce_hand_sphere_radius(target,-50)
@@ -270,7 +268,6 @@ class PlanarPosition(InteractionSpace):
         return beginning
     
 
-foo = 7
 class ThreeDimensionPosition(InteractionSpace):
     '''Create a 3D Position sensor that producess a linear output with position in a plane
     
@@ -292,11 +289,10 @@ class ThreeDimensionPosition(InteractionSpace):
         from the Leap will be converted into local reference frame coordinates.
         '''
 
-    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
+    def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'rectangle'):
         super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
-        self.normal_direction = NORMAL_DIRECTION
-        print self.local_basis
         
+        self.shape = shape
 
         if callback is None:
             callback = Coroutines._sink()
@@ -305,11 +301,17 @@ class ThreeDimensionPosition(InteractionSpace):
         valid_path = self.is_valid_path(update)
         self.data_listener = self._data_listener(valid_path) 
 
-
     def is_valid_path(self,target):
         end = Coroutines._enforce_hand_sphere_radius(target,-50)
         pipeA = Coroutines._prefer_older_pointable(end)
-        pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        #setup if stements by frequecy for speed
+        #small startup performance hit is better than whole new class that changes one line
+        if self.shape.lower() == 'rectangle': 
+            pipeB = Coroutines._check_bounding_box_all_pointable(pipeA)
+        elif self.shape.lower() == 'ellipsoid':
+            pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
+        elif self.shape.lower() == 'cylinder':
+            pipeB = Coroutines._check_bounding_cylinder_all_pointable(pipeA)
         pipeC = Coroutines._hand_palm_position(pipeB)
         beginning = Coroutines._add_hands_to_pointable_list(pipeC)
         return beginning
@@ -321,5 +323,3 @@ class ThreeDimensionPosition(InteractionSpace):
         #start = Coroutines._pass_arguments(beginning)
 
         return beginning
-
-

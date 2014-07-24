@@ -13,6 +13,7 @@ import VectorMath
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
 
+
 def get_data():
     # test to see if controller is on
     if (c.is_connected): # read property object is_connected of controller class
@@ -24,6 +25,7 @@ def get_data():
     else:
         print "Sleeping, no connection\n"
         time.sleep(1)
+
         
 def coroutine(func):
     def wrapper(*args,**kwargs):
@@ -360,6 +362,136 @@ def _check_bounding_box_all_pointable(target):
         target.send((args,kwargs))
 
 @coroutine
+def _check_bounding_cylinder_all_pointable(target):
+    '''Determine if a position given in Leap reference frame is inside 
+    Interaction volume that is a cylinder with symetric axis along the local z
+
+    MODIFIES STREAM
+
+    Parameters:
+    =============
+        pointable_list = list of pointable objects to check against bounding box
+            [{'object':pointable_id_1,'type':pointable_TYPE,'position':(x1,y1,z1)},...]
+
+    Requires:
+    =============
+        must be passed a class instance that has following properties
+            tuple self.center = (x,y,z)
+            int self.width
+            int self.depth
+            int self.height
+            function self.convert_to_local_coordinates()
+
+    '''
+    #convert Leap frame to local frame
+    while True:
+        args,kwargs = (yield)
+        self = args[0]
+        frame = args[1]
+        #make a temporary list to store valid pointables
+        valid_pointable_list = []
+        #get the position from stream
+        try:
+            pointable_list = kwargs['pointable_list']
+        except KeyError:
+            # we go to outer loop because there is nothing to process
+            continue
+        else:
+            #clean up stream
+            #del kwargs['pointable_list'] NOT CLEANING UP STREAM FOR NOW
+            pass
+        for local_pointable in pointable_list:
+            # look in the second index of each pointable for the preprocessed position
+            try:
+                position = local_pointable['position']
+            except KeyError:
+                continue
+            #HOTFIX because Leap.Vector does not support iteration
+            temp = [position[0],position[1],position[2]]
+            #translate the position to local origin
+            local_position = self.convert_to_local_coordinates(temp,self.local_basis)
+            # check the bounds of the volume with our local_position
+            if (-self.height/2) <= local_position[2] <= (self.height/2): #do easy check first
+                if ((local_position[0]/self.width)**2 + (local_position[1]/self.depth)**2) < self.radius:
+                    #the check passes so we append the pointable to the valid list
+                    #pointable is a dictionary
+                    #overwrite the position to local coordinates so other parts can use that
+                    local_pointable['position'] = local_position
+                    valid_pointable_list.append(local_pointable)
+            #place a new field with the 
+        kwargs['pointable_list'] = valid_pointable_list
+        target.send((args,kwargs))
+
+@coroutine
+def _check_bounding_ellipsoid_all_pointable(target):
+    '''Determine if a position given in Leap reference frame is inside 
+    Interaction volume that is an axis aligned ellipsoid. 
+    Equation of ellipsoid:
+        (x/(width/2)^2 + (y/(depth/2))^2 + (z/(height/2))^2 = 1
+
+    To use a sphere simply set each of the axis constants to be equal.
+        width = height = depth
+
+    MODIFIES STREAM
+
+    Parameters:
+    =============
+        pointable_list = list of pointable objects to check against bounding box
+            [{'object':pointable_id_1,'type':pointable_TYPE,'position':(x1,y1,z1)},...]
+
+    Requires:
+    =============
+        must be passed a class instance that has following properties
+            tuple self.center = (x,y,z)
+            int self.width
+            int self.depth
+            int self.height
+            function self.convert_to_local_coordinates()
+
+    '''
+    #convert Leap frame to local frame
+    while True:
+        args,kwargs = (yield)
+        self = args[0]
+        frame = args[1]
+        #make a temporary list to store valid pointables
+        valid_pointable_list = []
+        #get the position from stream
+        try:
+            pointable_list = kwargs['pointable_list']
+        except KeyError:
+            # we go to outer loop because there is nothing to process
+            continue
+        else:
+            #clean up stream
+            #del kwargs['pointable_list'] NOT CLEANING UP STREAM FOR NOW
+            pass
+        for local_pointable in pointable_list:
+            # look in the second index of each pointable for the preprocessed position
+            try:
+                position = local_pointable['position']
+            except KeyError:
+                continue
+            #HOTFIX because Leap.Vector does not support iteration
+            temp = [position[0],position[1],position[2]]
+            #translate the position to local origin
+            local_position = self.convert_to_local_coordinates(temp,self.local_basis)
+            # check the bounds of the volume with our local_position
+            #for brevity we use letters for the constants
+            a = self.width/2
+            b = self.depth/2
+            c = self.height/2
+            if (local_position[0]/a)**2 + (local_position[1]/b)**2 + (local_position[2]/c)**2 < 1:
+                #the check passes so we append the pointable to the valid list
+                #pointable is a dictionary
+                #overwrite the position to local coordinates so other parts can use that
+                local_pointable['position'] = local_position
+                valid_pointable_list.append(local_pointable)
+            #place a new field with the 
+        kwargs['pointable_list'] = valid_pointable_list
+        target.send((args,kwargs))
+
+@coroutine
 def _prefer_older_pointable(target):
     '''Check the class instace if there is a pointable that is already interacting
 
@@ -398,7 +530,7 @@ def _prefer_older_pointable(target):
                         #overwrite the pointable list to only have our chosen poitnable 
                         kwargs['pointable_list'] = [pointable]
                         did_not_find_flag = False
-                        #as soon as we find a valid poitnable we stop
+                        #as soon as we find a valid pointable we stop
                         break
                     else:
                         #we move on to the next element
@@ -485,7 +617,7 @@ def _pass_arguments(target):
     while True:
         args,kwargs = (yield)
         #print 'Just passing through'
-        print kwargs
+        #print kwargs
         target.send((args,kwargs))
 
 @coroutine
@@ -617,4 +749,223 @@ def _look_for_keyTap_gesture(target,controller):
     while True:
         args,kwargs = (yield)
 
+''' Make a unique token generator for nodes then create an instance'''
+
+class TokenGenerator:
+    def __init__(self):
+        self.token_names = [0]
+    #makes instances of it self to 
+    def get_token(self):
+        token = self.token_names[-1]+1
+        self.token_names.append(token)
+        return token
+
+#I know globals are bad please FIX
+tokenGenerator = TokenGenerator()
+
+
+@coroutine
+def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
+    '''Create a node that splits the stream to two child nodes
+
+    This is ment to be a general purpose coroutine node template that can be used
+    straight away for simple branching flow control.
+
+    EXTEND ME !! write your own for more intricate and nonlinear signal processing.
+
+    Parameters:
+    ==============
+        targetA = the first child node
+        targetB = the second child node
+        condition_A = boolean expression controlling sending stream to targetA. If true
+                      we send the stream on
+        condition_B = boolean expression controlling sending stream to targetB. If true
+                      we send the stream on.
+
+    Operation:
+    ============
+        The node will evaluate each condition in turn and if true send the stream to that 
+        fork. When control returns to the node after child processes run, the second
+        brach conditional will be evaluated. Each conditional will be evaluated every time
+        the coroutine is called so dynamic expressions are allowed
+
+    '''
+    #THIS IS A BAD HACk
+    #not sure how to cleanly implement this or if we need two different versions of spliter node
+    #will cast all conditions to callable objects 
+    import types
+    if not isinstance(condition_A, (types.FunctionType, types.BuiltinFunctionType, types.MethodType, types.BuiltinMethodType, types.UnboundMethodType)):
+        condition_A = lambda : condition_A
+    if not isinstance(condition_B, (types.FunctionType, types.BuiltinFunctionType, types.MethodType, types.BuiltinMethodType, types.UnboundMethodType)):
+        condition_B = lambda : condition_B
+
+    #get a unique identifier for this node in terms of the execution of the program
+    tokenA = tokenGenerator.get_token()
+    tokenB = tokenGenerator.get_token()
+    while True:
+        args,kwargs = (yield)
+
+        #this needs to be laziliy evaluated HOW?????
+        if condition_A():
+            #add in the token to the stream
+            kwargs['id_token'] = tokenA
+            targetA.send((args,kwargs))
+        #after control returns execution will return here
+        if condition_B():
+            kwargs['id_token'] = tokenB
+            targetB.send((args,kwargs))
+        #that's it for now, go to next loop
+
+@coroutine
+def _simple_joiner_node(target,merge = False): #only has one output
+    #if merge is false then we will discard all data except frame data
+    #the self parameter will be set to None.
+    from copy import deepcopy
+    def _merge_data_streams_according_to_very_specific_structure(structureA,structureB):
+        temp_struct = deepcopy(structureA)
+        structureB = deepcopy(structureB)
+        #for this specific function we expect a list of dicitonaries
+        #we do not go deeper because this a special limited case
+        not_in_A_but_in_B_list = []
+        for item_in_A in structureA:
+            #loop through all the items in structureB
+
+            for index,item_in_B in enumerate(structureB):
+                #check if the item is a list
+                if item_in_A == item_in_B:
+                    #we don't update but we do remove the found object
+                    structureB.pop(index)
+                #now we check for subsets 
+                #we check if it is a dictionary
+                try:
+                    set_keys_A = set(item_in_A.keys())
+                    set_keys_B = set(item_in_B.keys())   
+                except AttributeError:
+                    #try a list
+                    try:
+                        if item_in_A in item_in_B:
+                            item_in_A = item_in_B
+                            #remove the matching item once we find it
+                            structureB.pop(index)
+                            continue
+                    except TypeError:
+                        #you get here and this function should no longer be used
+                        raise RuntimeError,'you need a different merge function'
+                    else:
+                        pass
+
+                else:
+                    set_difference = set_keys_B.difference(set_keys_A)
+                    if set_difference:
+                        try:
+                            if item_in_A['object'] == item_in_B['object']:
+                                for new_keys in set_difference:
+                                    item_in_A[new_keys] = item_in_B[new_keys]
+                        except KeyError:
+                            #was not a pointable list
+                            pass
+                    elif not set_difference:
+                        #try and see if the values are different
+                        try:
+                            #specific case for the pointable_list
+                            if item_in_A['object'] != item_in_B['object']:
+                                temp_struct.append(item_in_B)
+                                #remove item_in_B once we have added it
+                                structureB.pop(index)
+                        except KeyError:
+                            #this is not a pointable_list
+                            pass
+        return temp_struct
+
+    #set up a list to hold the token ids which we can use to detect odd behavior.
+    #each join node should only have two static parent nodes. No change over life of program. 
+    token_id_dict = {}
+    #loop and wait for all nodes to check in.
+    while True:
+        argsT,kwargsT = (yield)
+        #get the token id
+        #argsT = deepcopy(argsT)
+        #kwargsT = deepcopy(kwargsT)
+        tokenT = kwargsT['id_token']
+        if tokenT not in token_id_dict:             
+            #check the length of the new list
+            if len(token_id_dict) >=2:
+                #there are more than two parent nodes
+                raise RuntimeError,'you have three or more parent nodes pointing to same joiner node'
+            else:
+                #there are not two parent nodes so add this to token list 
+                token_id_dict[tokenT] = [argsT,kwargsT] 
+        elif tokenT in token_id_dict:
+            token_id_dict[tokenT] = [argsT,kwargsT]          
+        if len(token_id_dict) == 1:
+            #we updated but there is only one token so
+            continue
+        else:
+            parent_nodes = token_id_dict.keys()
+            A = parent_nodes[0]
+            B = parent_nodes[1]
+            if not token_id_dict[A] or not token_id_dict[B]:
+                continue
+
+
+
+        #token is from a valid parent
+        #ovewrite the previous data from that parent with new data
+        token_id_dict[tokenT] = [argsT,kwargsT]
+        #now that we have updated all the data
+        #we know that there are only two parent nodes in the dict
+        parent_nodes = token_id_dict.keys()
+        A = parent_nodes[0]
+        B = parent_nodes[1]
+
+        args_A = token_id_dict[A][0]
+        kwargs_A = token_id_dict[A][1]
         
+        args_B = token_id_dict[B][0]
+        kwargs_B = token_id_dict[B][1]
+
+        #check if the frame ids are the same
+        if args_A[1].id == args_B[1].id:
+            #when the instances are not the same then we do not merge
+            if merge and (args_A[0] == args_B[0]):
+                if kwargs_A == kwargs_B:
+                    target.send((args_A,kwargs_A))
+                    token_id_dict[A] = []
+                    token_id_dict[B] = []
+                    continue
+                temp_kwargs = {}
+                #we are merging and the frame is the same
+                all_key_names = set(kwargs_A.keys() + kwargs_B.keys())
+                #strip out the id token, we dont car about it
+                all_key_names.remove('id_token')
+
+                for key in all_key_names:
+                    if key in kwargs_A:
+                        if key in kwargs_B:
+                            pass
+                            #calculate the merge of the sub data structure'''
+                            temp_kwargs[key] = _merge_data_streams_according_to_very_specific_structure(kwargs_A[key],kwargs_B[key])
+                        else:
+                            temp_kwargs[key] = kwargs_A[key]
+                    elif key in kwargs_B:
+                        temp_kwargs[key] = kwargs_B[key]
+                #send the data on
+                target.send((args_A,temp_kwargs))
+                token_id_dict[A] = []
+                token_id_dict[B] = []
+            elif args_A[0] != args_B[0] and not merge:
+                args_S = (None,argsA[1])
+                target.send((args_A, {}))
+                token_id_dict[A] = []
+                token_id_dict[B] = []
+            else:
+                #the instances are the same but we  dont merge data
+                target.send((args_A,{}))
+                token_id_dict[A] = []
+                token_id_dict[B] = []
+            #else:
+            #    pass
+        #wipe the packet data
+
+
+ 
