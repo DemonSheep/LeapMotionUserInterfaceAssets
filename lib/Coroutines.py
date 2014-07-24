@@ -9,6 +9,7 @@ import Leap
 import time
 import sys
 import VectorMath
+import numpy
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -969,3 +970,10 @@ def _simple_joiner_node(target,merge = False): #only has one output
 
 
  
+
+@coroutine
+def _moving_average_box_position_output(target,_stdd_threshold = 5,):
+    '''
+
+    '''
+    

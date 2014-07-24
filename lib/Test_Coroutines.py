@@ -115,14 +115,10 @@ class TestNodeDiamond(unittest.TestCase):
 
     def test_diamond_node_pattern(self):
         args = ['selfZ',fake_frame]
-        kwargs = deepcopy(self.data1)
-        self.source.send((args,kwargs))
+        for i in range(10):
+            kwargs = deepcopy(self.data1)
+            self.source.send((args,kwargs))
 
-        kwargs = deepcopy(self.data1)
-        self.source.send((args,kwargs))
-
-        kwargs = deepcopy(self.data1)
-        self.source.send((args,kwargs))
 
 class TestNodeNetWork(unittest.TestCase):
 

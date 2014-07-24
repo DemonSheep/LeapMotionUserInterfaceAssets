@@ -87,13 +87,10 @@ class Buffer(object):
         Remove and return the object in the queue at the specified index
 
         '''
-        if index == -1:
-            return self.queue.pop()
-        else:
-            try:
-                return self.queue.pop(index)
-            except IndexError: # if the index is invalid  then nothing happens
-                pass
+        try:
+            return self.queue.pop(index)
+        except IndexError: # if the index is invalid  then nothing happens
+            pass
             
 '''HANDLE USER INPUT ######################################################## '''
 
