@@ -86,7 +86,7 @@ class TestNodeJoining(unittest.TestCase):
             target.send((args,kwargsC))
 
 
-class TestNodeNetWork(unittest.TestCase):
+class TestNodeDiamond(unittest.TestCase):
 
     @coroutine
     def _sink_node(self):
@@ -124,6 +124,47 @@ class TestNodeNetWork(unittest.TestCase):
         kwargs = deepcopy(self.data1)
         self.source.send((args,kwargs))
 
+class TestNodeNetWork(unittest.TestCase):
+
+    @coroutine
+    def _sink_node(self):
+        while True:
+            args,kwargs = (yield)
+            self.assertEquals(kwargs['pointable_list'],self.data1['pointable_list'])
+            #print '*'*30
+            #print 'ARGS:  ',args
+            #print '#'*25
+            #print 'KWARGS:  ',kwargs
+
+
+    def setUp(self):
+            sink = self._sink_node()
+            join3 = Coroutines._simple_joiner_node(sink,merge = True)
+            join2 = Coroutines._simple_joiner_node(join3,merge = True)
+            join1 = Coroutines._simple_joiner_node(join3,merge = True)
+
+            targetA = Coroutines._pass_arguments(join1)
+            targetB = Coroutines._pass_arguments(join2)
+            targetC = Coroutines._pass_arguments(join2)
+            targetD = Coroutines._pass_arguments(join1)
+
+            split_2 = Coroutines._simple_switch_node(targetA,targetB,condition_A = True,condition_B = True)
+
+            split_1 = Coroutines._simple_switch_node(targetC,targetD,condition_A = True,condition_B = True)
+
+            self.source = Coroutines._simple_switch_node(split_1,split_2,condition_A = True,condition_B = True)
+            self.data1 = {'pointable_list':[
+                                    {'object':'handthing1','type':'HAND','position':(0,1,3)},
+                                    {'object':'fingerthing1','type':'FINGER'},
+                                    {'object':'fingerthing6','type':'FINGER','position':(62,71,81)}
+                                    ],
+                        'id_token': 10
+                        }
+
+    def test_mulitple_level_node_pattern(self):
+        args = ['selfZ',fake_frame]
+        kwargs = deepcopy(self.data1)
+        self.source.send((args,kwargs))
 
 if __name__ == '__main__':
     unittest.main()
