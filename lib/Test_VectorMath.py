@@ -3,7 +3,7 @@ import unittest
 import numpy
 import math
 
-class TestVector(unittest.TestCase):
+class TestVectorOperations(unittest.TestCase):
 
     def setUp(self):
         self.x = (1,0,0)
@@ -74,30 +74,22 @@ class TestVector(unittest.TestCase):
         numpy.testing.assert_allclose([math.pi/2],angle, atol = 1e-07)
 
 
-    def decompose_vector_test():
-        mybasis = [[1,0,0],[0,1,0],[0,0,1]]
+    def test_decompose_vector(self):
+        mybasis = [self.x,self.y,self.z]
         myvector = (1,2,3)
-        assert decompose_vector(myvector,mybasis) == [1,2,3]
+        assert VectorMath.decompose_vector(myvector,mybasis) == [1,2,3]
         another_basis = [[1,2,3],[0,0,0],[0,0,0]]
-        print decompose_vector(myvector,another_basis)
+        result = VectorMath.decompose_vector(myvector,another_basis)
+        self.assertEquals(result,[14,0,0])
 
-    def vector_rotation_test():
-        z = (0,0,1)
+    def test_vector_rotation(self):
         really_close = (0,0,.99999999999)
         angle = math.pi/4
         # we will try to rotate a vector about itself
-        this_quaternion = Quaternion.compose_quaternion(angle,z)
-        print 'Should be practically: ',really_close
-        print 'Result: ',Quaternion.rotation(really_close,this_quaternion)
+        this_quaternion = VectorMath.Quaternion.compose_quaternion(angle,self.z)
+        result = VectorMath.Quaternion.rotation(really_close,this_quaternion)
+        numpy.testing.assert_allclose(really_close,result)
 
-    #vector_rotation_test()   
-    #cross_product_test()
-    
-    #quaternion_test()
-
-    #basis_test()
-
-    #decompose_vector_test()
 
 if __name__ == '__main__':
     unittest.main()
