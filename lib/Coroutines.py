@@ -1000,7 +1000,7 @@ def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_le
     weights = numpy.ones(buffer_length)/buffer_length
     #write to a log file for data analysis purposes
     filename = 'smoothed_position_log_'+axis.lower()
-    f = open(filename,'r') 
+    f = open(filename,'w+') 
     while True:
             args,kwargs =  (yield)
             self = args[0]
@@ -1026,7 +1026,7 @@ def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_le
                     output = position[axis_index]
                 setattr(self,'smoothed_'+axis.lower(),output)
                 #log file
-                f.write(output)
+                f.write([frame.timestamp,output])
                 print 'smoothed_'+axis.lower(),output
             else:
                 #there was not a position in stream so we yield control back up
