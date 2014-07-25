@@ -683,7 +683,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
             #calculate the size of the partition but cast to float
             partition = side/float(resolution)
             #calculate the output by the 
-            output = int((position[axis_index]+(side/2.0))/partition)
+            output = int((position[axis_index]*gain+(side/2.0))/partition)
             #clamp the output to the size of the interaction box
             if output > side:
                 output = side/partition -1 #this is hacky result of printing visualization
@@ -693,7 +693,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
                 pass
             #take care of missing attribute and set output
             setattr(self,'clamped_'+axis.lower(),output)
-            print 'clamped_'+axis.lower(),output
+            #print 'clamped_'+axis.lower(),output
 
 
         else:
@@ -968,12 +968,68 @@ def _simple_joiner_node(target,merge = False): #only has one output
             #    pass
         #wipe the packet data
 
-
- 
-
 @coroutine
-def _moving_average_box_position_output(target,_stdd_threshold = 5,):
-    '''
+def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_length = 10):
+    '''Smooth position output based on moving average and size of standard deviation
+
+    Parameters:
+    ==============
+    axis            = string name of the axis to use. Output will be stored in parent 
+                      object under "smoothed_"+axis.lower() 
+    stdd_threshold  = the threshold at which the moving average is stopped and we directly
+                      use the leap data values.
 
     '''
     
+    if 'x' == axis.lower():
+        axis_index = 0
+        side_choice = lambda s: getattr(s,'width')
+    elif 'y' == axis.lower():
+        axis_index = 1
+        side_choice = lambda s: getattr(s,'depth')
+    elif 'z' == axis.lower():
+        axis_index = 2
+        side_choice = lambda s: getattr(s,'height')
+    else:
+        #poor soul did not use string form
+        raise SyntaxError,"You must specify the axis in string form: 'x' 'y' or 'z' "
+    position_buffer = []
+    '''Below is the array that controls weights for convolving the position signal.
+        Currently implemented as a moving average.
+    '''
+    weights = numpy.ones(buffer_length)/buffer_length
+    #write to a log file for data analysis purposes
+    filename = 'smoothed_position_log_'+axis.lower()
+    f = open(filename,'r') 
+    while True:
+            args,kwargs =  (yield)
+            self = args[0]
+            frame = args[1]
+            #check that there is a position in stream with extra check to make sure it is non empty
+            if kwargs['pointable_list'] and 'position' in kwargs['pointable_list'][0].keys():
+                position = kwargs['pointable_list'][0]['position']
+                try:
+                    gain = getattr(self,'gain')
+                except AttributeError:
+                    #make gain the identity
+                    gain = 1
+                #add the latest position to end of the list     
+                position_buffer.append(position[axis_index])
+                while len(position_buffer) > buffer_length:
+                    #remove elements from first of list
+                    position_buffer.pop(0)
+                #calculate the standard deviation of the new list
+                std_dev = numpy.std(position_buffer)
+                if std_dev < stdd_threshold:
+                    output = numpy.convolve(position_buffer,weights)
+                else:
+                    output = position[axis_index]
+                setattr(self,'smoothed_'+axis.lower(),output)
+                #log file
+                f.write(output)
+                print 'smoothed_'+axis.lower(),output
+            else:
+                #there was not a position in stream so we yield control back up
+                continue
+            #this was an state update but we pass the stream on none the less
+            target.send((args,kwargs))

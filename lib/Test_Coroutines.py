@@ -85,6 +85,14 @@ class TestNodeJoining(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             target.send((args,kwargsC))
 
+    def test_merge_one_sided_data(self):
+        target = self.joiner_node_with_merge
+        args = ['self',fake_frame]
+        kwargsA = self.data1
+        kwargsB = {'id_token':9999999}
+        target.send((args,kwargsA))
+        target.send((args,kwargsB))
+
 
 class TestNodeDiamond(unittest.TestCase):
 

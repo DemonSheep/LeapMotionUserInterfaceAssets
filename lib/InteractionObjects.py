@@ -320,3 +320,8 @@ class ThreeDimensionPosition(InteractionSpace):
         #start = Coroutines._pass_arguments(beginning)
 
         return beginning
+
+class TwoDimensionConeAngle(InteractionSpace):
+    '''Create a volume that 
+
+    '''
