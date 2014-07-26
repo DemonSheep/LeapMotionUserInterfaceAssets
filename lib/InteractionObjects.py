@@ -325,3 +325,17 @@ class TwoDimensionConeAngle(InteractionSpace):
     '''Create a volume that 
 
     '''
+
+
+'''##################### Custom Versions of Interaction Objects ############################'''
+
+class BlockingThreeDimensionPosition(ThreeDimensionPosition):
+
+    #overide just the data pipes
+    @coroutine
+    def is_valid_path(self,target):
+        pass
+        pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
+
+    def updating_path(self,target):
+        pass
