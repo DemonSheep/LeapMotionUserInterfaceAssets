@@ -95,6 +95,10 @@ class Buffer(object):
 '''HANDLE USER INPUT ######################################################## '''
 
 class InteractionSpace(object):
+    #create some global flag variables so different interation objects can talk.
+
+    hand_command_valid = False
+
     '''Define volumes and valid interations for human input
 
     Create a volume in space that control actions can be bound to.
@@ -309,6 +313,8 @@ class ThreeDimensionPosition(InteractionSpace):
             pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
         elif self.shape.lower() == 'cylinder':
             pipeB = Coroutines._check_bounding_cylinder_all_pointable(pipeA)
+        else:
+            raise RuntimeError,'need to pick a valid shape type'
         pipeC = Coroutines._hand_palm_position(pipeB)
         beginning = Coroutines._add_hands_to_pointable_list(pipeC)
         return beginning
@@ -331,11 +337,107 @@ class TwoDimensionConeAngle(InteractionSpace):
 
 class BlockingThreeDimensionPosition(ThreeDimensionPosition):
 
-    #overide just the data pipes
-    @coroutine
-    def is_valid_path(self,target):
-        pass
-        pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
+    def __init__(self,CENTER = (0,0,0),WIDTH = 50,HEIGHT = 50,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'rectangle'):
+        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
+        
+        self.shape = shape
+
+        self.actual_position_sensor = LargerPositionVelocityCombination(CENTER = CENTER,WIDTH = 400,HEIGHT = 400,DEPTH = 400,NORMAL_DIRECTION = (0,1,0),callback = FOOBAR,shape = 'ellipsoid')
+
+        self.emergency_stop = None
+        #make sure that all child  elements get the emergency stop
+        self.actual_position_sensor.emergency_stop = self.emergency_stop
+
+        self.timer_block = self._timer_block()
+        
+        if callback is None:
+            callback = Coroutines._sink()
+        '''Setup the data path'''
+        valid_path = self.is_valid_path()
+        self.data_listener = self._data_listener(valid_path)
+
+    def is_valid_path(self):
+        #this is the branch for the updating and positon calcualting
+
+        branch2pipeA = self.actual_position_sensor.data_catcher #NOTE on this line we are using a custom landing coroutine to process our custom stream
+        targetA = self._check_for_preferred_pointable(branch2pipeA)
+        #this is the branch for finding a new pointable to use for control
+        branch1pipeC = Coroutines._prefer_older_pointable(self.timer_block)
+        if self.shape.lower() == 'rectangle': 
+            branch1pipeB = Coroutines._check_bounding_box_all_pointable(branch1pipeC)
+        elif self.shape.lower() == 'ellipsoid':
+            branch1pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(branch1pipeC)
+        elif self.shape.lower() == 'cylinder':
+            branch1pipeB = Coroutines._check_bounding_cylinder_all_pointable(branch1pipeC)
+        else:
+            raise RuntimeError,'need to pick a valid shape type'
+        branch1pipeA = Coroutines._hand_palm_position(branch1pipeB)
+        targetB = Coroutines._add_hands_to_pointable_list(branch1pipeA)
+        not_hand_command_valid = not self.hand_command_valid
+        beginning = Coroutines._simple_switch_node(targetA,targetB,condition_A = self.hand_command_valid,condition_B = not_hand_command_valid)
+        return beginning
 
     def updating_path(self,target):
         pass
+
+    @coroutine
+    def _check_for_preferred_pointable(self,target):
+        #here we look at all pointables in the frame and see if one of them was 
+        while True:
+            args,kwargs = (yield)
+            frame = args[1]
+            if self.interacting_id is not None:
+                temp_dict = {x.id : x for x in frame.hands}
+                if self.interacting_id in temp_dict:
+                    hand = temp_dict[self.interacting_id]
+                    #add the specific hand to pointable_list
+                    kwargs['pointable_list'] = [{'object':hand,'type':'HAND'}]
+                    target.send((args,kwargs))
+
+                else:
+                    #the preferred poitnable was not visible so we stop control input.
+                    self.hand_command_valid = False
+                    #call the emergency stop option
+                    self.emergency_stop()
+
+    @coroutine
+    def _timer_block(self):
+        my_id = None
+        start_time = None
+        delay_in_microseconds = 1000000
+        while True:
+            args,kwargs = (yield)
+            frame = args[1]
+            if self.interacting_id == my_id:
+                #check the time
+                if start_time is not None:
+                    if frame.timestamp - start_time > delay_in_microseconds:
+                        self.hand_command_valid = True
+            else:
+                my_id = self.interacting_id
+                start_time = frame.timestamp
+
+
+class LargerPositionVelocityCombination(ThreeDimensionPosition):
+
+    def __init__(self,CENTER = (0,0,0),WIDTH = 300,HEIGHT = 300,DEPTH = 300,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'ellipsoid'):
+
+
+        end = callback
+        update = updating_path(end)
+        valid_path = is_valid_path(update)
+        self.custom_receive_hand_and_frame = self._custom_receive_hand_and_frame(valid_path)
+    def is_valid_path(self,target):
+        pass
+
+    def updating_path(self,target):
+        pass
+
+    @coroutine
+    def _custom_receive_hand_and_frame(self,target):
+
+        while True:
+            args,kwargs = (yield)
+            #overwrite the class instance to current instance
+            args[0] = self
+            target.send((args,kwargs))

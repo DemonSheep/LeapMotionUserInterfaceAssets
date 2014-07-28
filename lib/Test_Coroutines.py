@@ -23,9 +23,9 @@ class TestNodeJoining(unittest.TestCase):
 
 
     def setUp(self):
-        end = self._sink_node()
-        self.joiner_node_no_merge = Coroutines._simple_joiner_node(end)
-        self.joiner_node_with_merge = Coroutines._simple_joiner_node(end,True)
+        self.end = self._sink_node()
+        self.joiner_node_no_merge = Coroutines._simple_joiner_node(self.end)
+        self.joiner_node_with_merge = Coroutines._simple_joiner_node(self.end,True)
 
         self.data1 = {'pointable_list':[
                                         {'object':'handthing1','type':'HAND','position':(0,1,3)},
@@ -58,6 +58,15 @@ class TestNodeJoining(unittest.TestCase):
     def test_without_merging(self):
         #print 'running first test'
         target = self.joiner_node_no_merge
+        args = ['self',fake_frame]
+        kwargsA = self.data1
+        kwargsB = self.data2
+        target.send((args,kwargsA))
+        target.send((args,kwargsB))
+
+    def test_with_merging_and_specific_self(self):
+        #print 'running third test'
+        target = Coroutines._simple_joiner_node(self.end,merge = True, self_instance = 'selfK')
         args = ['self',fake_frame]
         kwargsA = self.data1
         kwargsB = self.data2

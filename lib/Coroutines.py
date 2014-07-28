@@ -818,9 +818,10 @@ def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
         #that's it for now, go to next loop
 
 @coroutine
-def _simple_joiner_node(target,merge = False): #only has one output
+def _simple_joiner_node(target,merge = False,self_instance = None): #only has one output
     #if merge is false then we will discard all data except frame data
     #the self parameter will be set to None.
+    #if merge is True then the instance will be set to self_instance
     from copy import deepcopy
     def _merge_data_streams_according_to_very_specific_structure(structureA,structureB):
         temp_struct = deepcopy(structureA)
@@ -928,7 +929,7 @@ def _simple_joiner_node(target,merge = False): #only has one output
         #check if the frame ids are the same
         if args_A[1].id == args_B[1].id:
             #when the instances are not the same then we do not merge
-            if merge and (args_A[0] == args_B[0]):
+            if merge and ((args_A[0] == args_B[0]) or self_instance):
                 if kwargs_A == kwargs_B:
                     target.send((args_A,kwargs_A))
                     token_id_dict[A] = []
@@ -950,6 +951,9 @@ def _simple_joiner_node(target,merge = False): #only has one output
                             temp_kwargs[key] = kwargs_A[key]
                     elif key in kwargs_B:
                         temp_kwargs[key] = kwargs_B[key]
+                #add the custom self intance
+                if self_instance:
+                    args_A[0] = self_instance
                 #send the data on
                 target.send((args_A,temp_kwargs))
                 token_id_dict[A] = []
@@ -960,7 +964,7 @@ def _simple_joiner_node(target,merge = False): #only has one output
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             else:
-                #the instances are the same but we  dont merge data
+                #the instances are the same but we dont merge data
                 target.send((args_A,{}))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
