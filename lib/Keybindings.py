@@ -7,7 +7,7 @@ Copyright (c) 2014
 Released under MIT License
 """
 
-from InteractionObjects import CubicButton,Slider,PlanarPosition,ThreeDimensionPosition
+from InteractionObjects import LargerPositionVelocityCombination,BlockingThreeDimensionPosition
 from Coroutines import coroutine
 
 class KeyBinding(object):
@@ -32,27 +32,39 @@ class KeyBinding(object):
             ===================================
 
         '''
-        self.update_position = _self._update_position
-        self.positon_sphere = ThreeDimensionPosition(self,CENTER = (0,180,0),WIDTH = 300,HEIGHT = 300,DEPTH = 300,NORMAL_DIRECTION = (0,1,0),callback = position_frame,shape = 'ellipsoid')
+        self.frame_control = None
+        self.containing_sphere = LargerPositionVelocityCombination(CENTER = (0,250,0),WIDTH = 400,HEIGHT = 400,DEPTH = 400,NORMAL_DIRECTION = (0,1,0),
+                                                                    callback = self.frame_control,shape = 'ellipsoid')
+
+        self.emergency_stop = self._emergency_stop()
+        self.centering_gate = BlockingThreeDimensionPosition(CENTER = (0,250,0),WIDTH = 75,HEIGHT = 75,DEPTH = 75,NORMAL_DIRECTION = (0,1,0),
+                                                            callback = self.emergency_stop, embedded_parent = self.containing_sphere, shape = 'ellipsoid')
 
         '''Make the list of all UI elements '''
 
-        self.UE_list = 
+        self.UE_list = [self.centering_gate]
                                
     '''BUTTON CALLBACKS ************************************************'''
 
     @coroutine 
     def _update_position(self):
 
-
         while True:
             args,kwargs = (yield)
+            print '*'*30
+            print 'ARGS:  ',args
+            print '#'*25
+            print 'KWARGS:  ',kwargs
 
 
-
+    
+    def _emergency_stop(self):
+        print 'emergency_stop'
+        print 'Flag:',self.containing_sphere.hand_command_valid
+        pass
 
     def joint_control(self):
-        
+        pass
         
 
 

@@ -337,12 +337,18 @@ class TwoDimensionConeAngle(InteractionSpace):
 
 class BlockingThreeDimensionPosition(ThreeDimensionPosition):
 
-    def __init__(self,CENTER = (0,0,0),WIDTH = 50,HEIGHT = 50,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'rectangle'):
+    def __init__(self, CENTER = (0,0,0), WIDTH = 50,HEIGHT = 50,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),
+                callback = None, embedded_parent = None, shape = 'rectangle'):
+
         super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
         
         self.shape = shape
+        if embedded_parent is not None:
+            self.actual_position_sensor = embedded_parent
+        else:
+            raise RuntimeError 
 
-        self.actual_position_sensor = LargerPositionVelocityCombination(CENTER = CENTER,WIDTH = 400,HEIGHT = 400,DEPTH = 400,NORMAL_DIRECTION = (0,1,0),callback = FOOBAR,shape = 'ellipsoid')
+        self.interacting_id = None
 
         self.emergency_stop = None
         #make sure that all child  elements get the emergency stop
@@ -359,7 +365,7 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
     def is_valid_path(self):
         #this is the branch for the updating and positon calcualting
 
-        branch2pipeA = self.actual_position_sensor.data_catcher #NOTE on this line we are using a custom landing coroutine to process our custom stream
+        branch2pipeA = self.actual_position_sensor.custom_receive_hand_and_frame #NOTE on this line we are using a custom landing coroutine to process our custom stream
         targetA = self._check_for_preferred_pointable(branch2pipeA)
         #this is the branch for finding a new pointable to use for control
         branch1pipeC = Coroutines._prefer_older_pointable(self.timer_block)
@@ -378,6 +384,7 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
         return beginning
 
     def updating_path(self,target):
+        #overide because we dont want it doing anything unexpected
         pass
 
     @coroutine
@@ -408,11 +415,16 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
         while True:
             args,kwargs = (yield)
             frame = args[1]
+            print self.hand_command_valid
+            print self.interacting_id
             if self.interacting_id == my_id:
                 #check the time
                 if start_time is not None:
+                    print 'time:',(frame.timestamp - start_time) /delay_in_microseconds
                     if frame.timestamp - start_time > delay_in_microseconds:
                         self.hand_command_valid = True
+                else:
+                    start_time = frame.timestamp
             else:
                 my_id = self.interacting_id
                 start_time = frame.timestamp
@@ -424,11 +436,13 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
 
 
         end = callback
-        update = updating_path(end)
-        valid_path = is_valid_path(update)
+        update = self.updating_path(end)
+        valid_path = self.is_valid_path(update)
         self.custom_receive_hand_and_frame = self._custom_receive_hand_and_frame(valid_path)
+
     def is_valid_path(self,target):
         pass
+        
 
     def updating_path(self,target):
         pass
@@ -440,4 +454,69 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
             args,kwargs = (yield)
             #overwrite the class instance to current instance
             args[0] = self
-            target.send((args,kwargs))
+            print args
+            print kwargs
+            #target.send((args,kwargs))
+
+    @coroutine
+    def _custom_enforce_hand_sphere_radius(targetA,targetB,radius_limit):
+        '''Remove hand objects from pointable_list that do not meet sphere radius inequality
+
+        MODIFIES STREAM
+
+        Casts both sides of comparison to integers for speed.
+        The sphere_radius will not be used in a precise enough context 
+        to justify the use of floating point operations
+
+        Parameters:
+        ============
+            radius_limit: limit of hand.sphere_radius will be filtered on
+                positive number --> hand.sphere_radius > radius_limit
+                negative number --> hand.sphere_radius < abs(radius_limit)
+
+            targetA = target if hand sphere radius inequality is True
+            targetB = target if hand sphere radius inequality is False
+
+        '''
+        try:
+            int(radius_limit)
+        except ValueError:
+            raise SyntaxError, 'ValueError: Must use a digit parameter for radius_limit'
+
+        if cmp(radius_limit,0) == -1:
+            radius_limit = -radius_limit # convert to positive number
+            #define a function that acts as closure over radius comparison type
+            def check_hand_sphere_radius(sphere_radius,index):
+                if sphere_radius > radius_limit: # the opposite of what we want
+                    #remove the offending hand object
+                    kwargs['pointable_list'].pop(index)
+
+        if cmp(radius_limit,0) == 1:
+            #define a function that acts as closure over radius comparison type
+            def check_hand_sphere_radius(sphere_radius,index): 
+                if sphere_radius < radius_limit: # the opposite of what we want
+                    #remove the offending hand object
+                    kwargs['pointable_list'].pop(index)
+
+        while True:
+            args,kwargs = (yield)
+            #check for a pointable_list
+            if 'pointable_list' in kwargs.keys() and (kwargs['pointable_list']):
+                for index,pointable in enumerate(kwargs['pointable_list']):
+                    #check to see if the pointable is a hand
+                    if pointable['type'] == 'HAND':
+                        hand = pointable['object'] # add refrence for readability
+                        sphere_radius = hand.sphere_radius
+                        check_hand_sphere_radius(sphere_radius,index)
+                    else:
+                        continue # was not a hand so continue to look for one
+            else:
+                continue # stop pipe and yield beacuse there was no valid pointables
+            if not kwargs['pointable_list']:
+                #if the list is empty, the inequality was false for every instance then we divert to targetB
+                #in this case we see a fail as a signal to abort commands
+                args[0].emergency_stop()
+                args[0].hand_command_valid = False
+                continue
+            else:
+                targetA.send((args,kwargs))

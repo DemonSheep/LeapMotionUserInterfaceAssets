@@ -61,14 +61,6 @@ def buffer_test():
         buff.enqueue(i)
         print buff.queue
 
-def runtime_test():
-    robot = RobotController()
-    for i in range(1200):
-        main(robot)
-        time.sleep(0.01)
-
-def end_effector_test():
-    pass
 
 def button_test():
     button = CubicButton(HEIGHT = 200)
@@ -96,7 +88,7 @@ def slider_run_test():
         targets.append(thing.data_listener)
     for i in range(400):
         frame_broadcaster(targets) 
-        time.sleep(.05)
+        #time.sleep(.01)
         print i
 
     

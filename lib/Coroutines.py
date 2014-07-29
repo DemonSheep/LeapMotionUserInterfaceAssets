@@ -231,8 +231,8 @@ def _enforce_hand_sphere_radius(target,radius_limit):
     Parameters:
     ============
         radius_limit: limit of hand.sphere_radius will be filtered on
-            positive number -> hand.sphere_radius > radius_limit
-            negative number -> hand.sphere_radius < abs(radius_limit)
+            positive number --> hand.sphere_radius > radius_limit
+            negative number --> hand.sphere_radius < abs(radius_limit)
 
     '''
     try:
@@ -474,7 +474,9 @@ def _check_bounding_ellipsoid_all_pointable(target):
             except KeyError:
                 continue
             #HOTFIX because Leap.Vector does not support iteration
+
             temp = [position[0],position[1],position[2]]
+            print temp
             #translate the position to local origin
             local_position = self.convert_to_local_coordinates(temp,self.local_basis)
             # check the bounds of the volume with our local_position
@@ -482,6 +484,7 @@ def _check_bounding_ellipsoid_all_pointable(target):
             a = self.width/2
             b = self.depth/2
             c = self.height/2
+            print local_position
             if (local_position[0]/a)**2 + (local_position[1]/b)**2 + (local_position[2]/c)**2 < 1:
                 #the check passes so we append the pointable to the valid list
                 #pointable is a dictionary
