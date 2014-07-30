@@ -379,8 +379,10 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
             raise RuntimeError,'need to pick a valid shape type'
         branch1pipeA = Coroutines._hand_palm_position(branch1pipeB)
         targetB = Coroutines._add_hands_to_pointable_list(branch1pipeA)
-        not_hand_command_valid = not self.hand_command_valid
-        beginning = Coroutines._simple_switch_node(targetA,targetB,condition_A = self.hand_command_valid,condition_B = not_hand_command_valid)
+        #wrapping the flags in lambda so we will evaluate them every loop
+        hand_valid = lambda : InteractionSpace.hand_command_valid
+        not_hand_valid = lambda : not InteractionSpace.hand_command_valid
+        beginning = Coroutines._simple_switch_node(targetA,targetB,condition_A = hand_valid,condition_B = not_hand_valid)
         return beginning
 
     def updating_path(self,target):
@@ -402,7 +404,7 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
                     target.send((args,kwargs))
 
                 else:
-                    #the preferred poitnable was not visible so we stop control input.
+                    #the preferred pointable was not visible so we stop control input.
                     self.hand_command_valid = False
                     #call the emergency stop option
                     self.emergency_stop()
@@ -415,14 +417,16 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
         while True:
             args,kwargs = (yield)
             frame = args[1]
-            print self.hand_command_valid
-            print self.interacting_id
+            if (not kwargs['pointable_list']) or InteractionSpace.hand_command_valid:
+                continue
+
             if self.interacting_id == my_id:
                 #check the time
                 if start_time is not None:
-                    print 'time:',(frame.timestamp - start_time) /delay_in_microseconds
                     if frame.timestamp - start_time > delay_in_microseconds:
-                        self.hand_command_valid = True
+                        InteractionSpace.hand_command_valid = True
+                        #reset the counter so next tiem we will start counting again
+                        start_time = None
                 else:
                     start_time = frame.timestamp
             else:
@@ -434,7 +438,7 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
 
     def __init__(self,CENTER = (0,0,0),WIDTH = 300,HEIGHT = 300,DEPTH = 300,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'ellipsoid'):
 
-
+        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
         end = callback
         update = self.updating_path(end)
         valid_path = self.is_valid_path(update)
@@ -449,14 +453,21 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
 
     @coroutine
     def _custom_receive_hand_and_frame(self,target):
-
+        count = 0
         while True:
             args,kwargs = (yield)
             #overwrite the class instance to current instance
             args[0] = self
-            print args
-            print kwargs
+            #print args
+            #print kwargs
             #target.send((args,kwargs))
+            if count > 5:
+                InteractionSpace.hand_command_valid = False
+                count = 0
+
+            else:
+                count += 1
+            print InteractionSpace.hand_command_valid
 
     @coroutine
     def _custom_enforce_hand_sphere_radius(targetA,targetB,radius_limit):

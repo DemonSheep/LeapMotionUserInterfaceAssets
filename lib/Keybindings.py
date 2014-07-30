@@ -37,7 +37,7 @@ class KeyBinding(object):
                                                                     callback = self.frame_control,shape = 'ellipsoid')
 
         self.emergency_stop = self._emergency_stop()
-        self.centering_gate = BlockingThreeDimensionPosition(CENTER = (0,250,0),WIDTH = 75,HEIGHT = 75,DEPTH = 75,NORMAL_DIRECTION = (0,1,0),
+        self.centering_gate = BlockingThreeDimensionPosition(CENTER = (0,250,0),WIDTH = 400,HEIGHT = 400,DEPTH = 400,NORMAL_DIRECTION = (0,1,0),
                                                             callback = self.emergency_stop, embedded_parent = self.containing_sphere, shape = 'ellipsoid')
 
         '''Make the list of all UI elements '''
