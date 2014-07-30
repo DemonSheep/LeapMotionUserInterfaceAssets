@@ -86,7 +86,7 @@ def slider_run_test():
     targets = []
     for thing in keybind.UE_list:
         targets.append(thing.data_listener)
-    for i in range(100):
+    for i in range(400):
         frame_broadcaster(targets) 
         time.sleep(.05)
         print i

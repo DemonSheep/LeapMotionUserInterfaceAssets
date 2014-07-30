@@ -32,13 +32,14 @@ class KeyBinding(object):
             ===================================
 
         '''
-        self.frame_control = None
+        self.frame_control = self._update_position()
         self.containing_sphere = LargerPositionVelocityCombination(CENTER = (0,250,0),WIDTH = 400,HEIGHT = 400,DEPTH = 400,NORMAL_DIRECTION = (0,1,0),
                                                                     callback = self.frame_control,shape = 'ellipsoid')
 
-        self.emergency_stop = self._emergency_stop()
-        self.centering_gate = BlockingThreeDimensionPosition(CENTER = (0,250,0),WIDTH = 400,HEIGHT = 400,DEPTH = 400,NORMAL_DIRECTION = (0,1,0),
-                                                            callback = self.emergency_stop, embedded_parent = self.containing_sphere, shape = 'ellipsoid')
+        self.emergency_stop_callback = self._emergency_stop
+
+        self.centering_gate = BlockingThreeDimensionPosition(CENTER = (0,250,0),WIDTH = 175,HEIGHT = 175,DEPTH = 175,NORMAL_DIRECTION = (0,1,0),
+                                                            callback = self.emergency_stop_callback, embedded_parent = self.containing_sphere, shape = 'rectangle')
 
         '''Make the list of all UI elements '''
 
@@ -52,9 +53,9 @@ class KeyBinding(object):
         while True:
             args,kwargs = (yield)
             print '*'*30
-            print 'ARGS:  ',args
-            print '#'*25
-            print 'KWARGS:  ',kwargs
+            #print 'ARGS:  ',args
+            #print '#'*25
+            #print 'KWARGS:  ',kwargs
 
 
     

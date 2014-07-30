@@ -881,7 +881,8 @@ def _simple_joiner_node(target,merge = False,self_instance = None): #only has on
                             #this is not a pointable_list
                             pass
         return temp_struct
-
+    #get a unique token for this node
+    this_node_token = tokenGenerator.get_token()
     #set up a list to hold the token ids which we can use to detect odd behavior.
     #each join node should only have two static parent nodes. No change over life of program. 
     token_id_dict = {}
@@ -941,7 +942,7 @@ def _simple_joiner_node(target,merge = False,self_instance = None): #only has on
                 temp_kwargs = {}
                 #we are merging and the frame is the same
                 all_key_names = set(kwargs_A.keys() + kwargs_B.keys())
-                #strip out the id token, we dont car about it
+                #strip out the id token, we dont care about it
                 all_key_names.remove('id_token')
 
                 for key in all_key_names:
@@ -958,17 +959,18 @@ def _simple_joiner_node(target,merge = False,self_instance = None): #only has on
                 if self_instance:
                     args_A[0] = self_instance
                 #send the data on
+                temp_kwargs
                 target.send((args_A,temp_kwargs))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             elif args_A[0] != args_B[0] and not merge:
                 args_S = (None,argsA[1])
-                target.send((args_A, {}))
+                target.send((args_A, {'id_token':this_node_token}))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             else:
                 #the instances are the same but we dont merge data
-                target.send((args_A,{}))
+                target.send((args_A,{'id_token':this_node_token}))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             #else:
@@ -1006,7 +1008,7 @@ def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_le
     '''
     weights = numpy.ones(buffer_length)/buffer_length
     #write to a log file for data analysis purposes
-    filename = 'smoothed_position_log_'+axis.lower()
+    filename = 'smoothed_position_log_'+axis.lower()+'.txt'
     f = open(filename,'w+') 
     while True:
             args,kwargs =  (yield)
@@ -1015,28 +1017,37 @@ def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_le
             #check that there is a position in stream with extra check to make sure it is non empty
             if kwargs['pointable_list'] and 'position' in kwargs['pointable_list'][0].keys():
                 position = kwargs['pointable_list'][0]['position']
+                temp = [position[0],position[1],position[2]]
+                #print temp
+                #translate the position to local origin
+                local_position = self.convert_to_local_coordinates(temp,self.local_basis)
                 try:
                     gain = getattr(self,'gain')
                 except AttributeError:
                     #make gain the identity
                     gain = 1
                 #add the latest position to end of the list     
-                position_buffer.append(position[axis_index])
+                position_buffer.append(local_position[axis_index])
                 while len(position_buffer) > buffer_length:
                     #remove elements from first of list
                     position_buffer.pop(0)
                 #calculate the standard deviation of the new list
                 std_dev = numpy.std(position_buffer)
                 if std_dev < stdd_threshold:
-                    output = numpy.convolve(position_buffer,weights)
+                    output = numpy.convolve(position_buffer,weights,mode='valid')
+                    if len(output) == 1:
+                        output = float(output[0])
+                    else:
+                        output = numpy.mean(output)
                 else:
-                    output = position[axis_index]
+                    output = local_position[axis_index]
                 setattr(self,'smoothed_'+axis.lower(),output)
                 #log file
-                f.write([frame.timestamp,output])
+                f.write(str([frame.timestamp,output])+'\n')
                 print 'smoothed_'+axis.lower(),output
             else:
                 #there was not a position in stream so we yield control back up
                 continue
             #this was an state update but we pass the stream on none the less
             target.send((args,kwargs))
+

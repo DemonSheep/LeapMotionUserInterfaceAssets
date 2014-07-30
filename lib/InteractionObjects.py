@@ -350,9 +350,11 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
 
         self.interacting_id = None
 
-        self.emergency_stop = None
+        self.emergency_stop = callback
+
         #make sure that all child  elements get the emergency stop
         self.actual_position_sensor.emergency_stop = self.emergency_stop
+
 
         self.timer_block = self._timer_block()
         
@@ -361,6 +363,7 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
         '''Setup the data path'''
         valid_path = self.is_valid_path()
         self.data_listener = self._data_listener(valid_path)
+
 
     def is_valid_path(self):
         #this is the branch for the updating and positon calcualting
@@ -405,7 +408,7 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
 
                 else:
                     #the preferred pointable was not visible so we stop control input.
-                    self.hand_command_valid = False
+                    InteractionSpace.hand_command_valid = False
                     #call the emergency stop option
                     self.emergency_stop()
 
@@ -427,6 +430,9 @@ class BlockingThreeDimensionPosition(ThreeDimensionPosition):
                         InteractionSpace.hand_command_valid = True
                         #reset the counter so next tiem we will start counting again
                         start_time = None
+                        position = kwargs['pointable_list'][0]['object'].palm_position
+                        print 'setting center=',position
+                        self.actual_position_sensor.center = (position[0],position[1],position[2])
                 else:
                     start_time = frame.timestamp
             else:
@@ -445,11 +451,24 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
         self.custom_receive_hand_and_frame = self._custom_receive_hand_and_frame(valid_path)
 
     def is_valid_path(self,target):
-        pass
+        hand_meets_criteria = target
+        hand_fails_test = Coroutines._sink()
+        pipeA = self._custom_enforce_hand_sphere_radius(hand_meets_criteria,hand_fails_test,50)
+        beginning = Coroutines._hand_palm_position(pipeA)
+        return beginning
+
         
 
     def updating_path(self,target):
-        pass
+        join1 = Coroutines._simple_joiner_node(target,merge = False,self_instance = None)
+        join2 = Coroutines._simple_joiner_node(join1,merge = False,self_instance = None)
+        updateX = Coroutines._moving_average_box_position_output(join1,'x',stdd_threshold = 1,buffer_length = 10)
+        updateY = Coroutines._moving_average_box_position_output(join2,'y',stdd_threshold = 1,buffer_length = 10)
+        updateZ = Coroutines._moving_average_box_position_output(join2,'z',stdd_threshold = 1,buffer_length = 10)
+        split1 = Coroutines._simple_switch_node(updateY,updateZ,condition_A = True,condition_B = True)
+        base_split = Coroutines._simple_switch_node(updateX,split1,condition_A = True,condition_B = True)
+        return base_split
+
 
     @coroutine
     def _custom_receive_hand_and_frame(self,target):
@@ -458,19 +477,12 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
             args,kwargs = (yield)
             #overwrite the class instance to current instance
             args[0] = self
-            #print args
-            #print kwargs
-            #target.send((args,kwargs))
-            if count > 5:
-                InteractionSpace.hand_command_valid = False
-                count = 0
-
-            else:
-                count += 1
-            print InteractionSpace.hand_command_valid
+            #print 'before:',InteractionSpace.hand_command_valid
+            target.send((args,kwargs))
+            #print 'after:',InteractionSpace.hand_command_valid
 
     @coroutine
-    def _custom_enforce_hand_sphere_radius(targetA,targetB,radius_limit):
+    def _custom_enforce_hand_sphere_radius(self,targetA,targetB,radius_limit):
         '''Remove hand objects from pointable_list that do not meet sphere radius inequality
 
         MODIFIES STREAM
@@ -526,8 +538,8 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
             if not kwargs['pointable_list']:
                 #if the list is empty, the inequality was false for every instance then we divert to targetB
                 #in this case we see a fail as a signal to abort commands
-                args[0].emergency_stop()
-                args[0].hand_command_valid = False
+                self.emergency_stop()
+                InteractionSpace.hand_command_valid = False
                 continue
             else:
                 targetA.send((args,kwargs))
