@@ -21,29 +21,40 @@ from lib.Coroutines import *
 
         
 
-                
-'''VISUALIZE #################################################################'''
-length = 80
-height = 20
-board = []
-for i in range(height):
-    if i == 0 or i == height-1:
-        board.append(["#"] * length)
-    else:
-        temp = ["#","#"]
-        for i in range(length-2):
-            temp.insert(1,"0")
-        board.append(temp)
-def print_board():
-    for row in board:
-        print "".join(row)
+''' DEFINE KEYBOARD INTERRUPTS '''
+import platform
 
+my_os = platform.system()
+if my_os == 'Windows':
+    def start_sim():
+            return None
+    #create  the keyborad interupt case
+    import msvcrt
+    def key_interrupt():
+        if msvcrt.kbhit():
+            character = msvcrt.getch()
+        else:
+            character = False
+        return character
 
+elif my_os == 'Linux':
 
-def player_position(board,x,y):
-    board[x][y] = 'X'
-    return board
+    import tty,sys,termios
+    def key_interrupt():
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd,termios.TCSADRAIN,old_settings)
+        return ch
 
+    try:
+        from lib.Test_Callbacks import start_sim
+    except ImportError:
+        def start_sim():
+            return None
 
 ''' TESTS ####################################################################'''
 
@@ -82,11 +93,16 @@ def key_bind_test():
     print keybind.nuke_the_universe[0].center
     
 def slider_run_test():
+    start_sim()
+    print 'finished node'
     keybind = KeyBinding()
     targets = []
     for thing in keybind.UE_list:
         targets.append(thing.data_listener)
     for i in range(400):
+        x = key_interrupt()
+        if x:
+            print 'key is:',x.decode()
         frame_broadcaster(targets) 
         time.sleep(.05)
         print i
