@@ -87,17 +87,18 @@ class Buffer(object):
         Remove and return the object in the queue at the specified index
 
         '''
-        if index == -1:
-            return self.queue.pop()
-        else:
-            try:
-                return self.queue.pop(index)
-            except IndexError: # if the index is invalid  then nothing happens
-                pass
+        try:
+            return self.queue.pop(index)
+        except IndexError: # if the index is invalid  then nothing happens
+            pass
             
 '''HANDLE USER INPUT ######################################################## '''
 
 class InteractionSpace(object):
+    #create some global flag variables so different interation objects can talk.
+
+    hand_command_valid = False
+
     '''Define volumes and valid interations for human input
 
     Create a volume in space that control actions can be bound to.
@@ -312,6 +313,8 @@ class ThreeDimensionPosition(InteractionSpace):
             pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(pipeA)
         elif self.shape.lower() == 'cylinder':
             pipeB = Coroutines._check_bounding_cylinder_all_pointable(pipeA)
+        else:
+            raise RuntimeError,'need to pick a valid shape type'
         pipeC = Coroutines._hand_palm_position(pipeB)
         beginning = Coroutines._add_hands_to_pointable_list(pipeC)
         return beginning
@@ -323,3 +326,224 @@ class ThreeDimensionPosition(InteractionSpace):
         #start = Coroutines._pass_arguments(beginning)
 
         return beginning
+
+class TwoDimensionConeAngle(InteractionSpace):
+    '''Create a volume that 
+
+    '''
+
+
+'''##################### Custom Versions of Interaction Objects ############################'''
+
+class BlockingThreeDimensionPosition(ThreeDimensionPosition):
+
+    def __init__(self, CENTER = (0,0,0), WIDTH = 50,HEIGHT = 50,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),
+                callback = None, embedded_parent = None, shape = 'rectangle'):
+
+        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
+        
+        self.shape = shape
+        if embedded_parent is not None:
+            self.actual_position_sensor = embedded_parent
+        else:
+            raise RuntimeError 
+
+        self.interacting_id = None
+
+        self.emergency_stop = callback
+
+        #make sure that all child  elements get the emergency stop
+        self.actual_position_sensor.emergency_stop = self.emergency_stop
+
+
+        self.timer_block = self._timer_block()
+        
+        if callback is None:
+            callback = Coroutines._sink()
+        '''Setup the data path'''
+        valid_path = self.is_valid_path()
+        self.data_listener = self._data_listener(valid_path)
+
+
+    def is_valid_path(self):
+        #this is the branch for the updating and positon calcualting
+
+        branch2pipeA = self.actual_position_sensor.custom_receive_hand_and_frame #NOTE on this line we are using a custom landing coroutine to process our custom stream
+        targetA = self._check_for_preferred_pointable(branch2pipeA)
+        #this is the branch for finding a new pointable to use for control
+        branch1pipeC = Coroutines._prefer_older_pointable(self.timer_block)
+        if self.shape.lower() == 'rectangle': 
+            branch1pipeB = Coroutines._check_bounding_box_all_pointable(branch1pipeC)
+        elif self.shape.lower() == 'ellipsoid':
+            branch1pipeB = Coroutines._check_bounding_ellipsoid_all_pointable(branch1pipeC)
+        elif self.shape.lower() == 'cylinder':
+            branch1pipeB = Coroutines._check_bounding_cylinder_all_pointable(branch1pipeC)
+        else:
+            raise RuntimeError,'need to pick a valid shape type'
+        branch1pipeA = Coroutines._hand_palm_position(branch1pipeB)
+        targetB = Coroutines._add_hands_to_pointable_list(branch1pipeA)
+        #wrapping the flags in lambda so we will evaluate them every loop
+        hand_valid = lambda : InteractionSpace.hand_command_valid
+        not_hand_valid = lambda : not InteractionSpace.hand_command_valid
+        beginning = Coroutines._simple_switch_node(targetA,targetB,condition_A = hand_valid,condition_B = not_hand_valid)
+        return beginning
+
+    def updating_path(self,target):
+        #overide because we dont want it doing anything unexpected
+        pass
+
+    @coroutine
+    def _check_for_preferred_pointable(self,target):
+        #here we look at all pointables in the frame and see if one of them was 
+        while True:
+            args,kwargs = (yield)
+            frame = args[1]
+            if self.interacting_id is not None:
+                temp_dict = {x.id : x for x in frame.hands}
+                if self.interacting_id in temp_dict:
+                    hand = temp_dict[self.interacting_id]
+                    #add the specific hand to pointable_list
+                    kwargs['pointable_list'] = [{'object':hand,'type':'HAND'}]
+                    target.send((args,kwargs))
+
+                else:
+                    #the preferred pointable was not visible so we stop control input.
+                    InteractionSpace.hand_command_valid = False
+                    #call the emergency stop option
+                    self.emergency_stop()
+
+    @coroutine
+    def _timer_block(self):
+        my_id = None
+        start_time = None
+        delay_in_microseconds = 1000000
+        while True:
+            args,kwargs = (yield)
+            frame = args[1]
+            if (not kwargs['pointable_list']) or InteractionSpace.hand_command_valid:
+                continue
+
+            if self.interacting_id == my_id:
+                #check the time
+                if start_time is not None:
+                    if frame.timestamp - start_time > delay_in_microseconds:
+                        InteractionSpace.hand_command_valid = True
+                        #reset the counter so next tiem we will start counting again
+                        start_time = None
+                        position = kwargs['pointable_list'][0]['object'].palm_position
+                        print 'setting center=',position
+                        self.actual_position_sensor.center = (position[0],position[1],position[2])
+                else:
+                    start_time = frame.timestamp
+            else:
+                my_id = self.interacting_id
+                start_time = frame.timestamp
+
+
+class LargerPositionVelocityCombination(ThreeDimensionPosition):
+
+    def __init__(self,CENTER = (0,0,0),WIDTH = 300,HEIGHT = 300,DEPTH = 300,NORMAL_DIRECTION = (0,1,0),callback = None,shape = 'ellipsoid'):
+
+        super(ThreeDimensionPosition,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH, NORMAL = NORMAL_DIRECTION)
+        end = callback
+        update = self.updating_path(end)
+        valid_path = self.is_valid_path(update)
+        self.custom_receive_hand_and_frame = self._custom_receive_hand_and_frame(valid_path)
+
+        self.smoothed_x = None
+        self.smoothed_y = None
+        self.smoothed_z = None
+
+    def is_valid_path(self,target):
+        hand_meets_criteria = target
+        hand_fails_test = Coroutines._sink()
+        pipeA = self._custom_enforce_hand_sphere_radius(hand_meets_criteria,hand_fails_test,50)
+        beginning = Coroutines._hand_palm_position(pipeA)
+        return beginning
+
+        
+
+    def updating_path(self,target):
+        join1 = Coroutines._simple_joiner_node(target,merge = False,self_instance = None)
+        join2 = Coroutines._simple_joiner_node(join1,merge = False,self_instance = None)
+        updateX = Coroutines._moving_average_box_position_output(join1,'x',stdd_threshold = 1,buffer_length = 10)
+        updateY = Coroutines._moving_average_box_position_output(join2,'y',stdd_threshold = 1,buffer_length = 10)
+        updateZ = Coroutines._moving_average_box_position_output(join2,'z',stdd_threshold = 1,buffer_length = 10)
+        split1 = Coroutines._simple_switch_node(updateY,updateZ,condition_A = True,condition_B = True)
+        base_split = Coroutines._simple_switch_node(updateX,split1,condition_A = True,condition_B = True)
+        return base_split
+
+
+    @coroutine
+    def _custom_receive_hand_and_frame(self,target):
+        count = 0
+        while True:
+            args,kwargs = (yield)
+            #overwrite the class instance to current instance
+            args[0] = self
+            #print 'before:',InteractionSpace.hand_command_valid
+            target.send((args,kwargs))
+            #print 'after:',InteractionSpace.hand_command_valid
+
+    @coroutine
+    def _custom_enforce_hand_sphere_radius(self,targetA,targetB,radius_limit):
+        '''Remove hand objects from pointable_list that do not meet sphere radius inequality
+
+        MODIFIES STREAM
+
+        Casts both sides of comparison to integers for speed.
+        The sphere_radius will not be used in a precise enough context 
+        to justify the use of floating point operations
+
+        Parameters:
+        ============
+            radius_limit: limit of hand.sphere_radius will be filtered on
+                positive number --> hand.sphere_radius > radius_limit
+                negative number --> hand.sphere_radius < abs(radius_limit)
+
+            targetA = target if hand sphere radius inequality is True
+            targetB = target if hand sphere radius inequality is False
+
+        '''
+        try:
+            int(radius_limit)
+        except ValueError:
+            raise SyntaxError, 'ValueError: Must use a digit parameter for radius_limit'
+
+        if cmp(radius_limit,0) == -1:
+            radius_limit = -radius_limit # convert to positive number
+            #define a function that acts as closure over radius comparison type
+            def check_hand_sphere_radius(sphere_radius,index):
+                if sphere_radius > radius_limit: # the opposite of what we want
+                    #remove the offending hand object
+                    kwargs['pointable_list'].pop(index)
+
+        if cmp(radius_limit,0) == 1:
+            #define a function that acts as closure over radius comparison type
+            def check_hand_sphere_radius(sphere_radius,index): 
+                if sphere_radius < radius_limit: # the opposite of what we want
+                    #remove the offending hand object
+                    kwargs['pointable_list'].pop(index)
+
+        while True:
+            args,kwargs = (yield)
+            #check for a pointable_list
+            if 'pointable_list' in kwargs.keys() and (kwargs['pointable_list']):
+                for index,pointable in enumerate(kwargs['pointable_list']):
+                    #check to see if the pointable is a hand
+                    if pointable['type'] == 'HAND':
+                        hand = pointable['object'] # add refrence for readability
+                        sphere_radius = hand.sphere_radius
+                        check_hand_sphere_radius(sphere_radius,index)
+                    else:
+                        continue # was not a hand so continue to look for one
+            else:
+                continue # stop pipe and yield beacuse there was no valid pointables
+            if not kwargs['pointable_list']:
+                #if the list is empty, the inequality was false for every instance then we divert to targetB
+                #in this case we see a fail as a signal to abort commands
+                self.emergency_stop()
+                InteractionSpace.hand_command_valid = False
+                continue
+            else:
+                targetA.send((args,kwargs))

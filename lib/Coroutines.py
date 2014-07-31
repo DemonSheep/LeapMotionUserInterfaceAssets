@@ -9,6 +9,7 @@ import Leap
 import time
 import sys
 import VectorMath
+import numpy
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -230,8 +231,8 @@ def _enforce_hand_sphere_radius(target,radius_limit):
     Parameters:
     ============
         radius_limit: limit of hand.sphere_radius will be filtered on
-            positive number -> hand.sphere_radius > radius_limit
-            negative number -> hand.sphere_radius < abs(radius_limit)
+            positive number --> hand.sphere_radius > radius_limit
+            negative number --> hand.sphere_radius < abs(radius_limit)
 
     '''
     try:
@@ -473,7 +474,9 @@ def _check_bounding_ellipsoid_all_pointable(target):
             except KeyError:
                 continue
             #HOTFIX because Leap.Vector does not support iteration
+
             temp = [position[0],position[1],position[2]]
+            #print temp
             #translate the position to local origin
             local_position = self.convert_to_local_coordinates(temp,self.local_basis)
             # check the bounds of the volume with our local_position
@@ -481,6 +484,7 @@ def _check_bounding_ellipsoid_all_pointable(target):
             a = self.width/2
             b = self.depth/2
             c = self.height/2
+            #print local_position
             if (local_position[0]/a)**2 + (local_position[1]/b)**2 + (local_position[2]/c)**2 < 1:
                 #the check passes so we append the pointable to the valid list
                 #pointable is a dictionary
@@ -682,7 +686,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
             #calculate the size of the partition but cast to float
             partition = side/float(resolution)
             #calculate the output by the 
-            output = int((position[axis_index]+(side/2.0))/partition)
+            output = int((position[axis_index]*gain+(side/2.0))/partition)
             #clamp the output to the size of the interaction box
             if output > side:
                 output = side/partition -1 #this is hacky result of printing visualization
@@ -692,7 +696,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
                 pass
             #take care of missing attribute and set output
             setattr(self,'clamped_'+axis.lower(),output)
-            print 'clamped_'+axis.lower(),output
+            #print 'clamped_'+axis.lower(),output
 
 
         else:
@@ -817,9 +821,10 @@ def _simple_switch_node(targetA,targetB,condition_A = True,condition_B = True):
         #that's it for now, go to next loop
 
 @coroutine
-def _simple_joiner_node(target,merge = False): #only has one output
+def _simple_joiner_node(target,merge = False,self_instance = None): #only has one output
     #if merge is false then we will discard all data except frame data
     #the self parameter will be set to None.
+    #if merge is True then the instance will be set to self_instance
     from copy import deepcopy
     def _merge_data_streams_according_to_very_specific_structure(structureA,structureB):
         temp_struct = deepcopy(structureA)
@@ -876,7 +881,8 @@ def _simple_joiner_node(target,merge = False): #only has one output
                             #this is not a pointable_list
                             pass
         return temp_struct
-
+    #get a unique token for this node
+    this_node_token = tokenGenerator.get_token()
     #set up a list to hold the token ids which we can use to detect odd behavior.
     #each join node should only have two static parent nodes. No change over life of program. 
     token_id_dict = {}
@@ -927,7 +933,7 @@ def _simple_joiner_node(target,merge = False): #only has one output
         #check if the frame ids are the same
         if args_A[1].id == args_B[1].id:
             #when the instances are not the same then we do not merge
-            if merge and (args_A[0] == args_B[0]):
+            if merge and ((args_A[0] == args_B[0]) or self_instance):
                 if kwargs_A == kwargs_B:
                     target.send((args_A,kwargs_A))
                     token_id_dict[A] = []
@@ -936,7 +942,7 @@ def _simple_joiner_node(target,merge = False): #only has one output
                 temp_kwargs = {}
                 #we are merging and the frame is the same
                 all_key_names = set(kwargs_A.keys() + kwargs_B.keys())
-                #strip out the id token, we dont car about it
+                #strip out the id token, we dont care about it
                 all_key_names.remove('id_token')
 
                 for key in all_key_names:
@@ -949,23 +955,99 @@ def _simple_joiner_node(target,merge = False): #only has one output
                             temp_kwargs[key] = kwargs_A[key]
                     elif key in kwargs_B:
                         temp_kwargs[key] = kwargs_B[key]
+                #add the custom self intance
+                if self_instance:
+                    args_A[0] = self_instance
                 #send the data on
+                temp_kwargs
                 target.send((args_A,temp_kwargs))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             elif args_A[0] != args_B[0] and not merge:
                 args_S = (None,argsA[1])
-                target.send((args_A, {}))
+                target.send((args_A, {'id_token':this_node_token}))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             else:
-                #the instances are the same but we  dont merge data
-                target.send((args_A,{}))
+                #the instances are the same but we dont merge data
+                target.send((args_A,{'id_token':this_node_token}))
                 token_id_dict[A] = []
                 token_id_dict[B] = []
             #else:
             #    pass
         #wipe the packet data
 
+@coroutine
+def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_length = 10):
+    '''Smooth position output based on moving average and size of standard deviation
 
- 
+    Parameters:
+    ==============
+    axis            = string name of the axis to use. Output will be stored in parent 
+                      object under "smoothed_"+axis.lower() 
+    stdd_threshold  = the threshold at which the moving average is stopped and we directly
+                      use the leap data values.
+
+    '''
+    
+    if 'x' == axis.lower():
+        axis_index = 0
+        side_choice = lambda s: getattr(s,'width')
+    elif 'y' == axis.lower():
+        axis_index = 1
+        side_choice = lambda s: getattr(s,'depth')
+    elif 'z' == axis.lower():
+        axis_index = 2
+        side_choice = lambda s: getattr(s,'height')
+    else:
+        #poor soul did not use string form
+        raise SyntaxError,"You must specify the axis in string form: 'x' 'y' or 'z' "
+    position_buffer = []
+    '''Below is the array that controls weights for convolving the position signal.
+        Currently implemented as a moving average.
+    '''
+    weights = numpy.ones(buffer_length)/buffer_length
+    #write to a log file for data analysis purposes
+    filename = 'smoothed_position_log_'+axis.lower()+'.txt'
+    f = open(filename,'w+') 
+    while True:
+            args,kwargs =  (yield)
+            self = args[0]
+            frame = args[1]
+            #check that there is a position in stream with extra check to make sure it is non empty
+            if kwargs['pointable_list'] and 'position' in kwargs['pointable_list'][0].keys():
+                position = kwargs['pointable_list'][0]['position']
+                temp = [position[0],position[1],position[2]]
+                #print temp
+                #translate the position to local origin
+                local_position = self.convert_to_local_coordinates(temp,self.local_basis)
+                try:
+                    gain = getattr(self,'gain')
+                except AttributeError:
+                    #make gain the identity
+                    gain = 1
+                #add the latest position to end of the list     
+                position_buffer.append(local_position[axis_index])
+                while len(position_buffer) > buffer_length:
+                    #remove elements from first of list
+                    position_buffer.pop(0)
+                #calculate the standard deviation of the new list
+                std_dev = numpy.std(position_buffer)
+                if std_dev < stdd_threshold:
+                    output = numpy.convolve(position_buffer,weights,mode='valid')
+                    if len(output) == 1:
+                        output = float(output[0])
+                    else:
+                        output = numpy.mean(output)
+                else:
+                    output = local_position[axis_index]
+                setattr(self,'smoothed_'+axis.lower(),output)
+                #log file
+                f.write(str([frame.timestamp,output])+'\n')
+                print 'smoothed_'+axis.lower(),output
+            else:
+                #there was not a position in stream so we yield control back up
+                continue
+            #this was an state update but we pass the stream on none the less
+            target.send((args,kwargs))
+

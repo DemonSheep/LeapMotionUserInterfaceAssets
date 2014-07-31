@@ -42,7 +42,7 @@ class EndEffector(object):
     def update_position(self,delta_time,increment=(0,0,0,0,0,0) ,environment=None):
         e = environment
         def f(dt,dx,x):
-            x = list(x) # cast the position to a list so we canchange it
+            x = list(x) # cast the position to a list so we can change it
             for k,v in enumerate(dx):
                 x[k] += (v + dt*self.velocity[k])
             return x
