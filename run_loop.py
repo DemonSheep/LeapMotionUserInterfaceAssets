@@ -17,9 +17,10 @@ sys.path.insert(0,os.path.dirname(__file__))
 from lib.Keybindings import *
 from lib.InteractionObjects import *
 from lib.Robot import *
-from lib.Coroutines import *
+from lib.Coroutines import frame_broadcaster
 
-        
+import Tkinter as tk
+
 
 ''' DEFINE KEYBOARD INTERRUPTS '''
 import platform
@@ -93,7 +94,7 @@ def key_bind_test():
     print keybind.nuke_the_universe[0].center
     
 def slider_run_test():
-    start_sim()
+    
     print 'finished node'
     keybind = KeyBinding()
     targets = []
@@ -121,6 +122,62 @@ def button_run_test():
     
 ''' RUN TESTS HERE ############################################################'''
 
-slider_run_test()
+import Tkinter as tk
 
-#button_run_test()
+class MainWindow(tk.Frame):
+    def __init__(self, parent):
+        tk.Frame.__init__(self, parent)
+
+        self.direction = None
+
+        self.canvas = tk.Canvas(width=400, height=400)
+        self.canvas.pack(fill="both", expand=True)
+        self.canvas.create_oval(190, 190, 210, 210, 
+                                tags=("ball",),
+                                outline="red", fill="red")
+
+        self.canvas.create_line(0, 200, 400, 200,tags =("line"), fill="red", dash=(4, 4))
+
+        self.canvas.bind("<Any-KeyPress>", self.on_press)
+        self.canvas.bind("<Any-KeyRelease>", self.on_release)
+        self.canvas.bind("<1>", lambda event: self.canvas.focus_set())
+
+        self.animate()
+
+    def on_press(self, event):
+        delta = {
+            "Right": (1,0),
+            "Left": (-1, 0),
+            "Up": (0,-1),
+            "Down": (0,1)
+        }
+        self.direction = delta.get(event.keysym, None)
+
+    def on_release(self, event):
+        self.direction = None
+        print 'release'
+
+    def animate(self):
+        if self.direction is not None:
+            self.canvas.move("ball", *self.direction)
+        self.after(50, self.animate)
+
+if __name__ == "__main__":
+    start_sim() # initalize the sending node
+    
+    root = tk.Tk()
+    frame = tk.Frame(root)
+    frame.pack
+    bottomframe = tk.Frame(root)
+    bottomframe.pack( side = tk.TOP,expand=True, )
+    
+    greenbutton = tk.Button(bottomframe, text="Brown", fg="brown")
+    greenbutton.pack( side = tk.LEFT )
+    redbutton = tk.Button(bottomframe, text="Red", fg="red")
+    redbutton.pack( side = tk.RIGHT,ipady = 10)
+    blackbutton = tk.Button(bottomframe, text="Black", fg="black")
+    blackbutton.pack( side = tk.BOTTOM)
+
+
+    MainWindow(root).pack(fill="both", expand=True,side = tk.BOTTOM)
+    root.mainloop()
