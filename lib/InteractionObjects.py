@@ -450,6 +450,10 @@ class LargerPositionVelocityCombination(ThreeDimensionPosition):
         valid_path = self.is_valid_path(update)
         self.custom_receive_hand_and_frame = self._custom_receive_hand_and_frame(valid_path)
 
+        self.smoothed_x = None
+        self.smoothed_y = None
+        self.smoothed_z = None
+
     def is_valid_path(self,target):
         hand_meets_criteria = target
         hand_fails_test = Coroutines._sink()

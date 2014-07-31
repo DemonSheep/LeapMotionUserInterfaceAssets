@@ -54,6 +54,7 @@ class KeyBinding(object):
         while True:
             args,kwargs = (yield)
             print '*'*30
+            
             #print 'ARGS:  ',args
             #print '#'*25
             #print 'KWARGS:  ',kwargs

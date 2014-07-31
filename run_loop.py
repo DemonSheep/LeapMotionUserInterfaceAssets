@@ -18,6 +18,7 @@ from lib.Keybindings import *
 from lib.InteractionObjects import *
 from lib.Robot import *
 from lib.Coroutines import frame_broadcaster
+import lib.Coroutines as Co
 
 import Tkinter as tk
 
@@ -125,10 +126,22 @@ def button_run_test():
 import Tkinter as tk
 
 class MainWindow(tk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent,targets,keybind_object):
         tk.Frame.__init__(self, parent)
 
         self.direction = None
+        self.count = 0
+        self.keybind = keybind_object
+        #leap_service on flag
+        self.leap_frame_broadcasting_on = False
+
+        start_button = tk.Button(self, text="Start", fg="green")
+        start_button.pack( side = tk.LEFT )
+        start_button.bind("<Button-1>",self.start_button)
+
+        pause_button = tk.Button(self, text="Pause", fg="red")
+        pause_button.pack( side = tk.LEFT )
+        pause_button.bind("<Button-1>",self.pause_button)
 
         self.canvas = tk.Canvas(width=400, height=400)
         self.canvas.pack(fill="both", expand=True)
@@ -138,11 +151,22 @@ class MainWindow(tk.Frame):
 
         self.canvas.create_line(0, 200, 400, 200,tags =("line"), fill="red", dash=(4, 4))
 
+        self.canvas.create_line(200, 0, 200, 400,tags =("line"), fill="red", dash=(4, 4))
+
         self.canvas.bind("<Any-KeyPress>", self.on_press)
         self.canvas.bind("<Any-KeyRelease>", self.on_release)
         self.canvas.bind("<1>", lambda event: self.canvas.focus_set())
 
-        self.animate()
+        self.animate(targets)
+
+    def pause_button(self,event):
+        self.leap_frame_broadcasting_on = False
+        InteractionSpace.hand_command_valid = False
+        print 'Paused'
+
+    def start_button(self,event):
+        self.leap_frame_broadcasting_on = True
+        print 'Starting......'
 
     def on_press(self, event):
         delta = {
@@ -157,27 +181,33 @@ class MainWindow(tk.Frame):
         self.direction = None
         print 'release'
 
-    def animate(self):
+    def animate(self,targets):
+        if self.leap_frame_broadcasting_on:
+            frame_broadcaster(targets)
+
+        x = self.keybind.containing_sphere.smoothed_x
+        y = self.keybind.containing_sphere.smoothed_y
+        z = self.keybind.containing_sphere.smoothed_z
+        valid_flag = InteractionSpace.hand_command_valid
+
         if self.direction is not None:
             self.canvas.move("ball", *self.direction)
-        self.after(50, self.animate)
+            
+        self.after(50, self.animate,targets)
 
 if __name__ == "__main__":
     start_sim() # initalize the sending node
-    
+
     root = tk.Tk()
     frame = tk.Frame(root)
     frame.pack
     bottomframe = tk.Frame(root)
-    bottomframe.pack( side = tk.TOP,expand=True, )
-    
-    greenbutton = tk.Button(bottomframe, text="Brown", fg="brown")
-    greenbutton.pack( side = tk.LEFT )
-    redbutton = tk.Button(bottomframe, text="Red", fg="red")
-    redbutton.pack( side = tk.RIGHT,ipady = 10)
-    blackbutton = tk.Button(bottomframe, text="Black", fg="black")
-    blackbutton.pack( side = tk.BOTTOM)
+    bottomframe.pack( side = tk.BOTTOM,expand=True, )
 
+    keybind = KeyBinding()
+    targets = []
+    for thing in keybind.UE_list:
+        targets.append(thing.data_listener)
 
-    MainWindow(root).pack(fill="both", expand=True,side = tk.BOTTOM)
+    MainWindow(root,targets,keybind).pack(fill="both", expand=True,side = tk.TOP)
     root.mainloop()
