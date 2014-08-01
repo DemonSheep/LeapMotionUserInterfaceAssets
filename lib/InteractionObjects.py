@@ -163,7 +163,6 @@ class InteractionSpace(object):
         '''These are values that have nothing to do with reference frame'''
         self.gain_object = Gain()
 
-
     def convert_to_local_coordinates(self,coordinates,basis):
     	# find the relative vector from local origin to leap point
     	relative_vector = [value-self.center[index] for index,value in enumerate(coordinates)]
