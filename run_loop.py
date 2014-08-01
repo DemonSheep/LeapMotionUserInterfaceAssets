@@ -178,12 +178,12 @@ class MainWindow(tk.Frame):
         valid_flag = InteractionSpace.hand_command_valid
         #update the ball position
         if x is not None and y is not None:
-            x = int(x + self.window_width/2)
+            x = int(x*self.keybind.containing_sphere.gain_object.gain + self.window_width/2)
             if x < 0:
                 x = 0
             elif x > self.window_width:
                 x = self.window_width
-            y = int(y + self.window_height/2)
+            y = int(y*self.keybind.containing_sphere.gain_object.gain + self.window_height/2)
             if y < 0:
                 y = 0
             elif y > self.window_height:
