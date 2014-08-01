@@ -31,32 +31,7 @@ if my_os == 'Windows':
     def start_sim():
             return None
     #create  the keyborad interupt case
-    import msvcrt
-    def key_interrupt():
-        if msvcrt.kbhit():
-            character = msvcrt.getch()
-        else:
-            character = False
-        return character
 
-elif my_os == 'Linux':
-
-    import tty,sys,termios
-    def key_interrupt():
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(fd)
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd,termios.TCSADRAIN,old_settings)
-        return ch
-
-    try:
-        from lib.Test_Callbacks import start_sim
-    except ImportError:
-        def start_sim():
-            return None
 
 ''' TESTS ####################################################################'''
 
@@ -134,6 +109,11 @@ class MainWindow(tk.Frame):
         self.keybind = keybind_object
         #leap_service on flag
         self.leap_frame_broadcasting_on = False
+        #ball position coordinates
+        #x and y are set to be the starting positon of the ball
+        self.prev_x = 200
+        self.prev_y = 200
+        self.prev_z = None
 
         start_button = tk.Button(self, text="Start", fg="green")
         start_button.pack( side = tk.LEFT )
@@ -143,7 +123,9 @@ class MainWindow(tk.Frame):
         pause_button.pack( side = tk.LEFT )
         pause_button.bind("<Button-1>",self.pause_button)
 
-        self.canvas = tk.Canvas(width=400, height=400)
+        self.window_width = 400
+        self.window_height = 400
+        self.canvas = tk.Canvas(width=self.window_width, height=self.window_height)
         self.canvas.pack(fill="both", expand=True)
         self.canvas.create_oval(190, 190, 210, 210, 
                                 tags=("ball",),
@@ -176,10 +158,15 @@ class MainWindow(tk.Frame):
             "Down": (0,1)
         }
         self.direction = delta.get(event.keysym, None)
+        #keybinding for pause
+        if event.keysym == 'p':
+            self.pause_button(event)
+        #keybinding for start
+        elif event.keysym == 's':
+            self.start_button(event)
 
     def on_release(self, event):
         self.direction = None
-        print 'release'
 
     def animate(self,targets):
         if self.leap_frame_broadcasting_on:
@@ -189,10 +176,31 @@ class MainWindow(tk.Frame):
         y = self.keybind.containing_sphere.smoothed_y
         z = self.keybind.containing_sphere.smoothed_z
         valid_flag = InteractionSpace.hand_command_valid
+        #update the ball position
+        if x is not None and y is not None:
+            x = int(x + self.window_width/2)
+            if x < 0:
+                x = 0
+            elif x > self.window_width:
+                x = self.window_width
+            y = int(y + self.window_height/2)
+            if y < 0:
+                y = 0
+            elif y > self.window_height:
+                y = self.window_height
+
+            delta_x = x - self.prev_x
+            self.prev_x = x
+            delta_y = y - self.prev_y
+            self.prev_y = y
+            self.canvas.move("ball",delta_x,-delta_y)
+
 
         if self.direction is not None:
             self.canvas.move("ball", *self.direction)
-            
+
+               
+
         self.after(50, self.animate,targets)
 
 if __name__ == "__main__":
