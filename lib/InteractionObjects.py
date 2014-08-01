@@ -108,14 +108,12 @@ class Gain(object):
             self.gain_counter = 1
         else:
             self.gain_counter += 1
-        print self.gain_counter
 
     def decrease_gain(self): # used for tk callback
         if self.gain_counter == 1:
             self.gain_counter = -2
         else:
             self.gain_counter -= 1
-        print self.gain_counter
     @property
     def gain(self,event):
         pass

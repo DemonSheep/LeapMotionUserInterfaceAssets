@@ -212,10 +212,10 @@ if __name__ == "__main__":
     bottomframe = tk.Frame(root)
     bottomframe.pack( side = tk.BOTTOM,expand=True)
 
-    increment_gain_button = tk.Button(bottomframe, text="increment_gain", fg="black")
+    increment_gain_button = tk.Button(bottomframe, text="increment gain", fg="black")
     increment_gain_button.pack( side = tk.LEFT )
     increment_gain_button.bind("<Button-1>",lambda event: keybind.containing_sphere.gain_object.increase_gain())
-    decrement_gain_button = tk.Button(bottomframe, text="decrement_gain", fg="black")
+    decrement_gain_button = tk.Button(bottomframe, text="decrement gain", fg="black")
     decrement_gain_button.pack( side = tk.LEFT )
     decrement_gain_button.bind("<Button-1>",lambda event: keybind.containing_sphere.gain_object.decrease_gain())
     

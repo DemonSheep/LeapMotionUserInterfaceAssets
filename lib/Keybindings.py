@@ -50,7 +50,7 @@ class KeyBinding(object):
 
     @coroutine 
     def _update_position(self):
-
+        count = 0
         while True:
             args,kwargs = (yield)
             print '*'*30
@@ -62,6 +62,12 @@ class KeyBinding(object):
             #print 'ARGS:  ',args
             #print '#'*25
             #print 'KWARGS:  ',kwargs
+            if count == 0:
+                #callback_ep([0,0,.45,0,0,0],'frame_end_effector')
+                count += 1
+            elif count > 10:
+                #callback_ep([0,0,.45,0,0,0],'frame_end_effector')
+                count = 0
 
 
     
