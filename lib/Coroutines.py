@@ -679,7 +679,7 @@ def _simple_one_axis_position_from_position(target,axis,resolution): #axis is st
                 gain = getattr(self,'gain')
             except AttributeError:
                 #make gain the identity
-                gain = 1
+                gain = self.gain_object.gain
             #get the side we will be working with
             side = side_choice(self)
             #BAD FLOATING POINT MATH not sure how to FIX?
@@ -1044,7 +1044,7 @@ def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_le
                 setattr(self,'smoothed_'+axis.lower(),output)
                 #log file
                 f.write(str([frame.timestamp,output])+'\n')
-                print 'smoothed_'+axis.lower(),output
+                #print 'smoothed_'+axis.lower(),output
             else:
                 #there was not a position in stream so we yield control back up
                 continue

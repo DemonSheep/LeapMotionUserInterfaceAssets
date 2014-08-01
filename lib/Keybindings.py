@@ -54,7 +54,11 @@ class KeyBinding(object):
         while True:
             args,kwargs = (yield)
             print '*'*30
-            
+            x = self.containing_sphere.smoothed_x
+            y = self.containing_sphere.smoothed_y
+            z = self.containing_sphere.smoothed_z
+            gain = self.containing_sphere.gain_object.gain
+            print gain
             #print 'ARGS:  ',args
             #print '#'*25
             #print 'KWARGS:  ',kwargs

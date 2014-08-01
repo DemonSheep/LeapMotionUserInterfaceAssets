@@ -205,14 +205,20 @@ class MainWindow(tk.Frame):
 
 if __name__ == "__main__":
     start_sim() # initalize the sending node
-
+    keybind = KeyBinding()
     root = tk.Tk()
     frame = tk.Frame(root)
     frame.pack
     bottomframe = tk.Frame(root)
-    bottomframe.pack( side = tk.BOTTOM,expand=True, )
+    bottomframe.pack( side = tk.BOTTOM,expand=True)
 
-    keybind = KeyBinding()
+    increment_gain_button = tk.Button(bottomframe, text="increment_gain", fg="black")
+    increment_gain_button.pack( side = tk.LEFT )
+    increment_gain_button.bind("<Button-1>",lambda event: keybind.containing_sphere.gain_object.increase_gain())
+    decrement_gain_button = tk.Button(bottomframe, text="decrement_gain", fg="black")
+    decrement_gain_button.pack( side = tk.LEFT )
+    decrement_gain_button.bind("<Button-1>",lambda event: keybind.containing_sphere.gain_object.decrease_gain())
+    
     targets = []
     for thing in keybind.UE_list:
         targets.append(thing.data_listener)
