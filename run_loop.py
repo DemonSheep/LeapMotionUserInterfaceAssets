@@ -132,8 +132,11 @@ class MainWindow(tk.Frame):
                                 outline="red", fill="red")
 
         self.canvas.create_line(0, 200, 400, 200,tags =("line"), fill="red", dash=(4, 4))
-
         self.canvas.create_line(200, 0, 200, 400,tags =("line"), fill="red", dash=(4, 4))
+
+        for i in range(10):
+            self.canvas.create_line(-50,i*50,450,i*50,tags=("back_grid"), fill = "blue", dash = (4,4))
+            self.canvas.create_line(i*50,-50,i*50,450,tags=("back_grid"), fill = "blue", dash = (4,4))
 
         self.canvas.bind("<Any-KeyPress>", self.on_press)
         self.canvas.bind("<Any-KeyRelease>", self.on_release)

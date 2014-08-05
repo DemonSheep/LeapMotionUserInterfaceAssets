@@ -98,6 +98,7 @@ class KeyBinding(object):
                 #if it has moved then reupdate the prev components
                 prev_center = self.containing_sphere.center
                 prev_x,prev_y,prev_z = (0,0,0)
+            
             delta_x = (x - prev_x)*self.containing_sphere.gain_object.gain
             delta_y = (y - prev_y)*self.containing_sphere.gain_object.gain
             delta_z = (z - prev_z)*self.containing_sphere.gain_object.gain
