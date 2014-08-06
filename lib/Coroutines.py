@@ -10,6 +10,8 @@ import time
 import sys
 import VectorMath
 import numpy
+#euler angles function needs the math
+import math
 
 c = Leap.Controller  #reference the class
 control = c() # create a new instance of class
@@ -1051,3 +1053,36 @@ def _moving_average_box_position_output(target,axis,stdd_threshold = 1,buffer_le
             #this was an state update but we pass the stream on none the less
             target.send((args,kwargs))
 
+@coroutine
+def _simple_euler_angles_to_local_frame_from_palm_orientation(target):
+    '''Calaculate the Euler Angles from the orientation of the palm
+
+    '''
+
+@coroutine
+def _enforce_n_fingers_extended_per_hand(target, n = 1, strict = False):
+    '''Check that some number of fingers are extended
+    Thumbs count as fingers so n can be at most 5. This function will sanity check 
+    and floor all n values to the integers 0,1,2,3,4,5
+
+    Parameters:
+    =============
+        n = the number of fingers that must be extended.
+        strict = flag to look for at least as many fingers (False) or exactly as many fingers (True)
+
+    Hint: if you are looking to make sure that **k** fingers are closed then just set n=5-k and strict = True
+    '''
+    n = int(n) #cast to float 
+    if 0< n < 5: pass
+    elif n < 0: n = 0
+    else: n = 5
+
+    while True:
+        args,kwargs = (yield)
+        self = args[0]
+        if kwargs['pointable_list']:
+            for element in kwargs['pointable_list']:
+                if element['type'] == 'HAND':
+                    hand_direction = element['object'].direction
+                    hand_direction = [hand_direction[i] for i in range(len(hand_direction))
+                    self.convert_to_local_coordinates(hand_direction, basis = self.local_basis)
