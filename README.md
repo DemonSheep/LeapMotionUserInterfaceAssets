@@ -10,7 +10,7 @@ This project provides a library of virtual controls such as:
   - [x] Buttons
   - [x] Sliders
   - [x] 2D and 3D position control (like a mouse)
-  - [ ] 2D and 3D orientation control (like a trackball)
+  - [x] 2D and 3D orientation control (like a trackball)
   
 You can also write your own custom interaction object from template and easily link it with rest! 
 
@@ -26,7 +26,7 @@ You can also write your own custom interaction object from template and easily l
   
 ###Using Your Code:
 
-  Each Interaction Object can be linked to a callback. The callback is where you put your code that you want to run each
+  Each Interaction Object can be linked to a callback, or another Interaction Object. The callback is where you put your code that you want to run each
   time the Interaction Object is updated by user interaction. The KeyBinding class is the glue where Interaction Objects
   are linked with their callbacks
   
