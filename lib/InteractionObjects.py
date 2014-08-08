@@ -366,7 +366,10 @@ class ThreeDimensionPosition(InteractionSpace):
         return beginning
 
 class TwoDimensionConeAngle(InteractionSpace):
-    '''Create a volume that 
+    '''Create a volume that measures absolute angular movements relative to the origin.
+
+    Output in radians, also exposes a quaternion of the latest delta movement since the last
+    frame data. Useful for view applications.
 
     '''
 
