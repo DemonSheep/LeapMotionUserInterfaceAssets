@@ -22,6 +22,7 @@ You can also write your own custom interaction object from template and easily l
   recoginition code is executed and the user input parsed. Each Interaction Object modifies an internal state in 
   response to user gestures. This state can be read continously by other parts of your application or polled only when 
   the state changes.
+  Each interaction object instance contains information on its size, shape, and orientation in space as well a directed graph composed of coroutines. The coroutines implement data filters, conditionals, and create side effects.
   
   
 ###Using Your Code:
