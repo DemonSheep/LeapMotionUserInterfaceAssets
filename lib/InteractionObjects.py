@@ -8,7 +8,7 @@ Released under MIT License
 """
 import Leap
 import time
-import sys
+import sys,math
 import VectorMath
 #figure out these import statements
 import Coroutines
@@ -91,7 +91,45 @@ class Buffer(object):
             return self.queue.pop(index)
         except IndexError: # if the index is invalid  then nothing happens
             pass
-            
+
+class Gain(object):
+    ''' Create a helper class to do gain calculations
+
+    Gain will be limited to integer values for simplicity
+    Gain counter will express the desired gain level in integer form
+    To express damping, or gains less than unity, we use a negative counter
+
+    '''
+    def __init__(self):
+        self.gain_counter = 1
+
+    def increase_gain(self): #used for tk callback
+        if self.gain_counter == -2:
+            self.gain_counter = 1
+        else:
+            self.gain_counter += 1
+
+    def decrease_gain(self): # used for tk callback
+        if self.gain_counter == 1:
+            self.gain_counter = -2
+        else:
+            self.gain_counter -= 1
+    @property
+    def gain(self,event):
+        pass
+
+    @gain.setter
+    def gain(self,value):
+        return None
+
+    @gain.getter
+    def gain(self): #used by tk callback
+        if self.gain_counter < 0:
+            return 1.0/abs(self.gain_counter)
+        elif self.gain_counter > 0:
+            return self.gain_counter
+
+
 '''HANDLE USER INPUT ######################################################## '''
 
 class InteractionSpace(object):
@@ -123,7 +161,7 @@ class InteractionSpace(object):
 
 
         '''These are values that have nothing to do with reference frame'''
-        self.gain = 1
+        self.gain_object = Gain()
 
     def convert_to_local_coordinates(self,coordinates,basis):
     	# find the relative vector from local origin to leap point
@@ -194,7 +232,7 @@ class Slider(InteractionSpace):
     def __init__(self,CENTER = (0,0,0),WIDTH = 100,HEIGHT = 100,DEPTH = 50,NORMAL_DIRECTION = (0,1,0),callback = None):
         super(Slider,self).__init__(CENTER=CENTER,WIDTH = WIDTH, HEIGHT = HEIGHT, DEPTH = DEPTH,NORMAL = NORMAL_DIRECTION )
         self.buff = Buffer()
-        self.gain = 1
+        self.gain_object = Gain()
         # figure out which direction the slider works in
         # direction is the largest dimension orthagonal to normal_direction        
         if self.width >= self.depth:
@@ -328,7 +366,10 @@ class ThreeDimensionPosition(InteractionSpace):
         return beginning
 
 class TwoDimensionConeAngle(InteractionSpace):
-    '''Create a volume that 
+    '''Create a volume that measures absolute angular movements relative to the origin.
+
+    Output in radians, also exposes a quaternion of the latest delta movement since the last
+    frame data. Useful for view applications.
 
     '''
 
